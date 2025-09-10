@@ -12,37 +12,9 @@ A fully fledged JavaScript Playground for web games. Can be extended with messag
         if (!playground) return;
         
         playground.Canvas.addEventListener("onkeydown", (event) => {
+            // listen to the input events within the playground scripts
             playground.postMessage("input:keydown", ...event)
-            /* this can be listened to in the Playground via:
-            self.addEventListener("message", (event: { data }) => {
-                const { type, payload } = data;
-                if (type === "input:keydown") {
-                    const event = payload;
-                    const { keyCode } = event;
-                }
-            })
-
-            // or
-            import { listen } from "/some/built/in/lib/idk"
-
-            const dispose = listen("input", {
-                keydown(payload) {
-                    // do something with the keyboard events
-                },
-            })
-
-            // when you are done make sure to clean up
-            // dispose();
-            */
         })
-
-        const dispose = playground.listen("console", {
-            log(payload) { console.log(payload) },
-            error(payload) { console.log(payload) },
-        })
-
-        /* The playground can postMessage listened to by us via:
-        postMessage({ type: "console:log", payload: "Hello world!" }) */
 
         return () => {
             dispose();
@@ -52,6 +24,32 @@ A fully fledged JavaScript Playground for web games. Can be extended with messag
 
 <Playground bind:this={playground}/>
 ```
+
+# How to contribute
+The best way to contribute will be to implement the core features that will be needed by the library. I'll be working to combine them into the actual working playground once they are finished. Each core feature should have it's own demo page where you can fully flesh it out and make sure it works `/components/[componentName]/+page.svelte`
+
+- [ ] Monaco Code Editor Component (basically already done, it just needs hooked up to the file viewer) demo at `/components/code`
+
+- [ ] File Viewer (UI to interact with the OPFS file system) demo at `/components/files`
+    - [ ] Uploading files
+    - [ ] Moving files
+    - [ ] Deleting fils
+    - [ ] Creating text files (maybe even allow creating png files??)
+    - [ ] Creating new folders
+    - [ ] Deleting folder recursively
+
+- [ ] Canvas + messaging API for scripts (since you have to run the code in a web worker) demo at `/components/canvas`
+    - [ ] Demo should have a single js script that gets run in a web worker. postMessage to the OffscreenCanvas
+    - [ ] Use already created Monaco component (or a textarea) to edit the script that gets injected.
+    - [ ] Develop an api around postMessage for playground example from previous playground -> https://codetoy.io/en/docs/post-message-api
+    - THIS IS THE FUNNEST PART SINCE YOU CAN MAKE GAMES
+
+- [ ] ServiceWorker Dev Server (will allow js modules support and multi-file projects instead of just injecting a single js script)
+    - [ ] Read from OPFS and respond to requests from `/files/myawesomelib.js` so the playground scripts can run
+
+- [ ] Blockly Code Editor (how it will work, how to run the generated code from a lbockly instance, how to represent the serialized blockly graph as a file in the file system. Allow editing blockly file through blocky + raw text through monaco)
+
+- [ ] [luna console](https://github.com/liriliri/luna/blob/master/src/console/README.md) a super cool console that looks exactly like the chrome devtools console
 
 # Svelte library
 
