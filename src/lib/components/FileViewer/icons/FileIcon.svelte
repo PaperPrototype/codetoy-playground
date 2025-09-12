@@ -2,12 +2,13 @@
   // import { getIcon } from "material-file-icons";
   import { getMaterialFileIcon } from "file-extension-icon-js";
 
-  export let name;
+  interface Props {
+    name: string;
+    style?: string;
+    class?: string;
+  }
 
-  let styleName = "";
-  export { styleName as style };
-  let className;
-  export { className as class };
+  let {name, ...rest}: Props = $props();
 </script>
 
 <!-- 
@@ -16,8 +17,7 @@
 </div> -->
 
 <img
-  class={className}
-  style={styleName}
-  src={getMaterialFileIcon(name)}
-  alt={name}
+    {...rest}
+    src={getMaterialFileIcon(name)}
+    alt={name}
 />

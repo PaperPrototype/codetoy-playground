@@ -2,6 +2,9 @@
     import { onMount } from "svelte";
     import type {Entry} from'$lib/components/FileViewer/files.js'
 
+    import FolderIcon from "./icons/FolderIcon.svelte";
+    import FileIcon from "./icons/FileIcon.svelte";
+
     let entries: { [key: string]: Entry } = $state({});
 
     onMount(async () => {
@@ -38,7 +41,10 @@
 
 <div id="opfs-file-list"></div>
 
-<!-- recursive component -->
+<!-- 
+    Sub component using svelte snippets 
+    https://svelte.dev/docs/svelte/snippet
+-->
 {#snippet leaf(entry: Entry, depth: number = 0)}
     <div style="padding-left: {depth * 20}px;">
         <div
@@ -50,18 +56,18 @@
         >
             <span>
                 {#if entry.kind === "file"}
-                    <FileIcon size={16} strokeWidth={2}></FileIcon>
+                    <FileIcon name={entry.name}></FileIcon>
                 {:else}
-                    <Folder size={16} strokeWidth={2}></Folder>
+                    <FolderIcon name={entry.name}></FolderIcon>
                 {/if}
             </span>
             <span>{entry.name}</span>
-
+<!-- 
             <button
                 class="bg-red-500 rounded-sm p-1"
                 onclick={() => fetchFileAttempt(entry.relativePath)}
                 >fetch rerquest</button
-            >
+            > -->
             {#if entry.kind === "file"}
                 <div
                     class=" group-hover:block hidden pointer-events-none w-80 bg-white rounded px-2 p-1 top-full left-full absolute z-10 shadow-md"
