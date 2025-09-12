@@ -1,3 +1,8 @@
+
+if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory) {
+    throw new Error('The File System Access API is not supported in this environment.');
+}
+
 import FileWorker from '$lib/components/FileViewer/worker?worker';
 const fileWorker = new FileWorker();
 

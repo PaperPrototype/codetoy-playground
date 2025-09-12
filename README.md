@@ -85,4 +85,4 @@ npm run dev
 npm run dev -- --open
 ```
 
-Go to `http://localhost:5173/` (or whatever url is provided) and you should see a playground with code editing!
+Open the url that shows up (eg. `http://localhost:5173/`) and you should see a playground with code editing!

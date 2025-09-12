@@ -1,6 +1,6 @@
 <script lang="ts">
     import { browser } from "$app/environment";
-    import { CodeEditor, LunaConsole } from "$lib/index.js";
+    import { CodeEditor, LunaConsole, FileViewer} from "$lib/index.js";
     import { onMount } from "svelte";
 
     let canvasContainer: HTMLElement;
@@ -50,7 +50,8 @@ self.onmessage = function({data: {type, payload}}) {
 
 <button class="btn" onclick={runCode}>Run</button>
 
-<div class="grid grid-cols-2">
+<div class="grid grid-cols-3">
+    <FileViewer />
     <CodeEditor bind:value={code} class="min-h-96 w-full" />
     <div bind:this={canvasContainer}></div>
 </div>
