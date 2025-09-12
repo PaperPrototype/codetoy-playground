@@ -1,32 +1,7 @@
-# JavaScript Playground for Games
-A JavaScript playground for Games made with Svelte 5 and JavaScript.
-
-# Getting Started
-
-The best place to start is [issue #3](https://github.com/PaperPrototype/codetoy-playground/issues/3).
-
-# How to Contribute
-
-1. Download and open the project in vs code. 
-
-2. To install the js packages run the following command in vs codes terminal
-
-```
-npm install
-```
-
-3. Start the development server and open the project:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-You should see a playground with code editing!
 
 # The Playground
+
+<img width="1077" height="697" alt="Image" src="https://github.com/user-attachments/assets/0b4b60c3-6c23-4900-ade6-2f603aafbf0e" />
 
 Go to `src/lib/components/Playground` and open `component.svelte`.
 
@@ -87,3 +62,27 @@ self.onmessage = function({data: {type, payload}}) {
 <div bind:this={canvasContainer}></div>
 ```
 
+# Getting Started
+
+The best place to start is [issue #3](https://github.com/PaperPrototype/codetoy-playground/issues/3).
+
+# How to Contribute
+
+1. Download and open the project in vs code. 
+
+2. To install the js packages run the following command in vs codes terminal
+
+```
+npm install
+```
+
+3. Start the development server and open the project:
+
+```sh
+npm run dev
+
+# or start the server and open the app in a new browser tab
+npm run dev -- --open
+```
+
+You should see a playground with code editing!
