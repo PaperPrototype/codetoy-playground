@@ -1,6 +1,8 @@
 import FileWorker from '$lib/components/FileViewer/worker?worker';
 const fileWorker = new FileWorker();
 
+// DOCS https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system
+
 export interface NonRecursiveEntry {
     path: string; 
     parentDir: FileSystemDirectoryHandle;
