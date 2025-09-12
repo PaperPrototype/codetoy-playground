@@ -70,7 +70,7 @@ The best place to start is [issue #3](https://github.com/PaperPrototype/codetoy-
 
 1. Download and open the project in vs code. 
 
-2. To install the js packages run the following command in vs codes terminal
+2. To install the js packages run the following command in the terminal
 
 ```
 npm install
