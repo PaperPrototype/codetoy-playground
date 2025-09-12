@@ -13,6 +13,7 @@
         const rootDir = await navigator.storage.getDirectory();
         entries = await listEntriesDetailed(rootDir);
 
+        /*
         const existing = document.getElementById("opfs-file-list");
         const l = document.createElement("ol");
 
@@ -36,10 +37,9 @@
             }
             l.appendChild(i);
         }
+        */
     });
 </script>
-
-<div id="opfs-file-list"></div>
 
 <!-- 
     Sub component using svelte snippets 
@@ -56,9 +56,9 @@
         >
             <span>
                 {#if entry.kind === "file"}
-                    <FileIcon name={entry.name}></FileIcon>
+                    <FileIcon class="w-5" name={entry.name}></FileIcon>
                 {:else}
-                    <FolderIcon name={entry.name}></FolderIcon>
+                    <FolderIcon class="w-5" name={entry.name}></FolderIcon>
                 {/if}
             </span>
             <span>{entry.name}</span>
