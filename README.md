@@ -1,7 +1,11 @@
 # JavaScript Playground for Games
 A JavaScript playground for Games made with Svelte 5 and JavaScript.
 
-# Get Started
+# Getting Started
+
+The best place to start is [issue #3](https://github.com/PaperPrototype/codetoy-playground/issues/3).
+
+# How to Contribute
 
 1. Download and open the project in vs code. 
 
@@ -22,7 +26,7 @@ npm run dev -- --open
 
 You should see a playground with code editing!
 
-# How to Get Started
+# The Playground
 
 Go to `src/lib/components/Playground` and open `component.svelte`.
 
