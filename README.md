@@ -64,7 +64,7 @@ self.onmessage = function({data: {type, payload}}) {
 
 # Getting Started
 
-The best place to start is [issue #3](https://github.com/PaperPrototype/codetoy-playground/issues/3).
+The best place to start is [issue #3](https://github.com/PaperPrototype/codetoy-playground/issues/3) or you can view the [available tasks here](https://github.com/users/PaperPrototype/projects/1/views/1)
 
 # How to Contribute
 

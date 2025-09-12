@@ -10,13 +10,12 @@ self.onmessage = function({data: {type, payload}}) {
     if (type === 'start') {
         const canvas = payload;
         console.log('Worker started', payload);
+
         const context2D = canvas.getContext('2d');
         console.log('context2D', context2D);
 
-        if (context2D) {
-            context2D.fillStyle = 'red';
-            context2D.fillRect(0, 0, canvas.width, canvas.height);
-        }
+        context2D.fillStyle = 'red';
+        context2D.fillRect(0, 0, canvas.width, canvas.height);
     }
 }`
 
