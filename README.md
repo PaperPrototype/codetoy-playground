@@ -76,7 +76,7 @@ The best place to start is [issue #3](https://github.com/PaperPrototype/codetoy-
 npm install
 ```
 
-3. Start the development server and open the project:
+3. Start the development server:
 
 ```sh
 npm run dev
@@ -85,4 +85,4 @@ npm run dev
 npm run dev -- --open
 ```
 
-You should see a playground with code editing!
+Go to `http://localhost:5173/` (or whatever url is provided) and you should see a playground with code editing!
