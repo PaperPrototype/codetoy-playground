@@ -1,10 +1,18 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { browser } from "$app/environment";
-    import type LunaConsole from "luna-console";
+    import type LunaConsole from "luna-console"
     import TestWorker from "./test-worker?worker";
 
-    let console: LunaConsole;
+    interface Props {
+        theme?: 'light' | 'dark';
+    }
+
+    let console: any | typeof LunaConsole;
+
+    let {
+        theme,
+    }: Props = $props();
 
     onMount(async () => {
         if (!browser) return;
@@ -18,7 +26,7 @@
 
         const container = document.getElementById("container");
         console = new LunaConsole(container!, {
-            // theme: 'dark'
+            theme: theme || 'light',
         });
         console.log("luna");
         console.log({});
@@ -44,8 +52,46 @@
         });
     });
 
-    function evaluate(input: any) {
-        console.evaluate(input);
+    export function log(...args: any[]) {
+        if (!console) {
+            throw new Error("Console not initialized yet");
+        }
+        console.log(...args);
+    }
+
+    export function error(...args: any[]) {
+        if (!console) {
+            throw new Error("Console not initialized yet");
+        }
+        console.error(...args);
+    }
+
+    export function warn(...args: any[]) {
+        if (!console) {
+            throw new Error("Console not initialized yet");
+        }
+        console.warn(...args);
+    }
+
+    export function info(...args: any[]) {
+        if (!console) {
+            throw new Error("Console not initialized yet");
+        }
+        console.info(...args);
+    }
+
+    export function assert(...args: any[]) {
+        if (!console) {
+            throw new Error("Console not initialized yet");
+        }
+        console.assert(...args);
+    }
+
+    export function evaluate(code: string) {
+        if (!console) {
+            throw new Error("Console not initialized yet");
+        }
+        console.evaluate(code);
     }
 </script>
 
@@ -54,7 +100,7 @@
     <input
         onkeydown={(e) => {
             if (e.key === "Enter") {
-                evaluate(e.currentTarget.value);
+                console.evaluate(e.currentTarget.value);
                 e.currentTarget.value = "";
             }
         }}

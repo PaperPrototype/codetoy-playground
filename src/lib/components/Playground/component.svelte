@@ -3,8 +3,11 @@
     import { CodeEditor, LunaConsole, FileViewer} from "$lib/index.js";
     import { onMount } from "svelte";
 
+    let console: LunaConsole;
     let canvasContainer: HTMLElement;
     let code = `
+import confetti from 'https://esm.sh/canvas-confetti@1.6.0';
+
 // Example code to draw a red rectangle
 self.onmessage = function({data: {type, payload}}) {
     if (type === 'start') {
@@ -17,7 +20,8 @@ self.onmessage = function({data: {type, payload}}) {
         context2D.fillStyle = 'red';
         context2D.fillRect(0, 0, canvas.width, canvas.height);
     }
-}`
+}
+`
 
     onMount(() => {
         if (!browser) return;
@@ -55,4 +59,5 @@ self.onmessage = function({data: {type, payload}}) {
     <CodeEditor bind:value={code} class="min-h-96 w-full" />
     <div bind:this={canvasContainer}></div>
 </div>
-<LunaConsole />
+
+<LunaConsole bind:this={console} />
