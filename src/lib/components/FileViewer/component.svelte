@@ -46,13 +46,21 @@
     https://svelte.dev/docs/svelte/snippet
 -->
 {#snippet leaf(entry: Entry, depth: number = 0)}
-    <div style="padding-left: {depth * 20}px;">
+    <div style="padding-left: {depth * 20}px;"
+        role="input"
+        aria-dropeffect="move"
+        ondragenter={(event) => {
+            event.target?.classList.add("bg-red-200");
+            console.log("dragging into", entry.name);
+        }}
+        ondragleave={(event) => {
+            event.target?.classList.remove("bg-red-200");
+            console.log("dragging out", entry.name);
+        }}
+        ondrop={() => {}}
+    >
         <div
-            class="relative w-fit flex items-center justify-start gap-2 group"
-            role="input"
-            aria-dropeffect="move"
-            ondragover={() => {}}
-            ondrop={() => {}}
+            class="relative w-fit pointer-events-none flex items-center justify-start gap-2 group"
         >
             <span>
                 {#if entry.kind === "file"}
