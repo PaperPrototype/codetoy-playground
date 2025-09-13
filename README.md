@@ -1,7 +1,9 @@
 
 # The Playground
 
-<img width="1077" height="697" alt="Image" src="https://github.com/user-attachments/assets/0b4b60c3-6c23-4900-ade6-2f603aafbf0e" />
+
+https://github.com/user-attachments/assets/a5a18c00-b8d1-45cd-8706-a1305f7e8fc5
+
 
 Go to `src/lib/components/Playground` and open `component.svelte`.
 
