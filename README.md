@@ -3,9 +3,33 @@
 
 <img width="1077" height="697" alt="Image" src="https://github.com/user-attachments/assets/0b4b60c3-6c23-4900-ade6-2f603aafbf0e" />
 
-Go to `src/lib/components/Playground` and open `component.svelte`.
+# How to Contribute
 
-The Playground component should look similar to this (this is a dumbed down version):
+The best place to start is [issue #3](https://github.com/PaperPrototype/codetoy-playground/issues/3) or you can view the [available tasks here](https://github.com/users/PaperPrototype/projects/1/views/1)
+
+# Getting Started
+
+1. Download and open the project in vs code. 
+
+2. To install the js packages run the following command in the terminal
+
+```
+npm install
+```
+
+3. Start the development server:
+
+```sh
+npm run dev
+
+# or start the server and open the app in a new browser tab
+npm run dev -- --open
+```
+
+Open the url that shows up (eg. `http://localhost:5173/`) and you should see a playground with code editing!
+
+# What Will I Be Making?
+The Playground component we are making looks like this:
 
 ```svelte
 <script lang="ts">
@@ -61,28 +85,3 @@ self.onmessage = function({data: {type, payload}}) {
 
 <div bind:this={canvasContainer}></div>
 ```
-
-# Getting Started
-
-The best place to start is [issue #3](https://github.com/PaperPrototype/codetoy-playground/issues/3) or you can view the [available tasks here](https://github.com/users/PaperPrototype/projects/1/views/1)
-
-# How to Contribute
-
-1. Download and open the project in vs code. 
-
-2. To install the js packages run the following command in the terminal
-
-```
-npm install
-```
-
-3. Start the development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-Open the url that shows up (eg. `http://localhost:5173/`) and you should see a playground with code editing!
