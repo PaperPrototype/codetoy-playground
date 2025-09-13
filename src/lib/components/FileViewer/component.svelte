@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import type { Entry } from "$lib/components/FileViewer/files.js";
+    import outside from "$lib/utils/outsideclick";
 
     import FolderIcon from "./icons/FolderIcon.svelte";
     import FileIcon from "./icons/FileIcon.svelte";
@@ -15,33 +16,19 @@
 
         const rootDir = await navigator.storage.getDirectory();
         entries = await listEntriesDetailed(rootDir);
-
-        /*
-        const existing = document.getElementById("opfs-file-list");
-        const l = document.createElement("ol");
-
-        if (existing) existing.replaceWith(l);
-        else document.body.appendChild(l);
-
-        for await (const fileHandle of getFilesNonRecursively(rootDir)) {
-            const i = document.createElement("li");
-            i.innerText =
-                fileHandle.kind + ": " + (fileHandle.relativePath ?? "(root)");
-            if (fileHandle.kind === "file") {
-                const content = await fileHandle.getFile();
-                const contentStr =
-                    content.type.length === 0 ||
-                    content.type.startsWith("text/")
-                        ? '"' +
-                          (await content.slice(0, 100).text()).trim() +
-                          '"'
-                        : content.type;
-                i.innerText += ": (" + content.size + " bytes) " + contentStr;
-            }
-            l.appendChild(i);
-        }
-        */
     });
+
+    function dropHandler(event: DragEvent) {
+        event.preventDefault();
+        // Use DataTransferItemList interface to access the file(s)
+        [...event.dataTransfer?.items || []].forEach((item, i) => {
+            // If dropped items aren't files, reject them
+            if (item.kind === "file") {
+                const file = item.getAsFile();
+                console.log(`dropped file[${i}].name = ${file?.name}`);
+            }
+        });
+    }
 </script>
 
 <!-- 
@@ -53,43 +40,42 @@
         <div
             bind:this={entry.element}
             role="input"
-            aria-dropeffect="move"
+            ondragover={(e) => {e.preventDefault();}}
             ondragenter={(event) => {
+                event.preventDefault();
                 if (event.target === entry.element) {
                     entry.element?.classList.add("bg-red-200");
                     entry.element?.classList.remove("bg-base-200");
                 }
-                console.log("dragging into", entry.name);
             }}
             ondragleave={(event) => {
                 if (event.target === entry.element) {
                     entry.element?.classList.remove("bg-red-200");
                     entry.element?.classList.add("bg-base-200");
                 }
-                console.log("dragging out", entry.name);
-            }}
-            ondragstart={(event) => {
-                // event.dataTransfer?.setData("text/plain", entry.name); // TODO get the file path
             }}
             draggable="true"
-            ondrop={() => {}}
-            ondrag={() => {}}
-            class="relative rounded bg-base-200 group w-full px-2"
+            ondrop={(event) => {
+                dropHandler(event);
+                entry.element?.classList.remove("bg-red-200");
+                entry.element?.classList.add("bg-base-200");
+            }}
+            dropped="true"
+            use:outside
+            onoutclick={() => {/*onsole.log("clicked outside", entry.name); CONFIRMED it works*/}}
+            class="mb-1 relative rounded bg-base-200 group w-full px-2"
         >
             <div class="pointer-events-none flex items-center justify-start gap-2">
-                <span>
-                    {#if entry.kind === "file"}
-                        <FileIcon class="w-5" name={entry.name}></FileIcon>
-                    {:else}
-                        <FolderIcon class="w-5" name={entry.name}></FolderIcon>
-                    {/if}
-                </span>
-                <span>{entry.name}</span>
+                {#if entry.kind === "file"}
+                    <FileIcon class="w-5" name={entry.name}></FileIcon>
+                {:else}
+                    <FolderIcon class="w-5" name={entry.name}></FolderIcon>
+                {/if}
+                <span class="whitespace-nowrap overflow-hidden overflow-ellipsis">{entry.name}</span>
                 <!-- 
-            <button class="bg-red-500 rounded-sm p-1" onclick={() => fetchFileAttempt(entry.relativePath)}>
-                fetch request
-            </button> 
-            -->
+                <button class="bg-red-500 rounded-sm p-1" onclick={() => fetchFileAttempt(entry.relativePath)}>
+                    fetch request
+                </button> 
                 {#if entry.kind === "file"}
                     <div
                         class="group-hover:block hidden pointer-events-none w-80 bg-white rounded px-2 p-1 top-full left-full absolute z-10 shadow-md"
@@ -106,10 +92,11 @@
                         <span>Path: {entry.relativePath}</span>
                     </div>
                 {/if}
+                -->
             </div>
         </div>
         {#if entry.entries && Object.keys(entry.entries).length > 0}
-            <div>
+            <div class="space-y-1">
                 {#each Object.entries(entry.entries) as [subKey, subValue] (subKey)}
                     {@render leaf(subValue, depth + 1)}
                 {/each}
@@ -118,7 +105,10 @@
     </div>
 {/snippet}
 
-<div class="p-2">
+<div 
+    class="p-2 space-y-1"
+    role="input"
+>
     {#each Object.entries(entries) as [key, value] (key)}
         {@render leaf(value, 0)}
     {/each}
