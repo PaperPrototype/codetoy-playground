@@ -148,7 +148,7 @@ export async function listContents(directoryHandle: FileSystemDirectoryHandle | 
     }
 }
 
-export type Entry = { element?: HTMLElement, name: string, kind: string, size?: number, type?: string, lastModified?: number, relativePath: string, entries?: { [key: string]: Entry }, handle: FileSystemFileHandle | FileSystemDirectoryHandle }
+export type Entry = { element?: HTMLElement, isEditing: boolean, name: string, kind: string, size?: number, type?: string, lastModified?: number, relativePath: string, entries?: { [key: string]: Entry }, handle: FileSystemFileHandle | FileSystemDirectoryHandle }
 
 export async function listEntriesDetailed(directoryHandle: FileSystemDirectoryHandle, relativePath = ''): Promise<{ [key: string]: Entry }> {
 

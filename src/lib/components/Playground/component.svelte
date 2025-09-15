@@ -12,10 +12,10 @@ import confetti from 'https://esm.sh/canvas-confetti@1.6.0';
 self.onmessage = function({data: {type, payload}}) {
     if (type === 'start') {
         const canvas = payload;
-        console.log('Worker started', payload);
+        // console.log('Worker started', payload);
 
         const context2D = canvas.getContext('2d');
-        console.log('context2D', context2D);
+        // console.log('context2D', context2D);
 
         context2D.fillStyle = 'red';
         context2D.fillRect(0, 0, canvas.width, canvas.height);
@@ -60,4 +60,4 @@ self.onmessage = function({data: {type, payload}}) {
     <div bind:this={canvasContainer}></div>
 </div>
 
-<LunaConsole bind:this={console} />
+<!-- <LunaConsole bind:this={console} /> -->
