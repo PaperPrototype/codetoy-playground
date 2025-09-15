@@ -9,7 +9,7 @@
     open?: boolean;
   }
 
-    let { name, open = true, ...rest }: Props = $props();
+    let { name, open = $bindable(true), ...rest }: Props = $props();
 </script>
 
 <!-- 

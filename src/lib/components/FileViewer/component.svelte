@@ -46,6 +46,7 @@
             name: "",
             relativePath: "",
             isEditing: false,
+            isOpen: true,
             entries: await listEntriesDetailed(rootDir),
         };
     }
@@ -54,11 +55,11 @@
         if (sourcePath === destinationPath) return;
         if (sourcePath.trim() === "") return;
 
-        const {moveFile} = await import("$lib/components/FileViewer/files.js");
+        const {moveFile: move} = await import("$lib/components/FileViewer/files.js");
 
         if (focusedEntry && focusedEntry.kind === "file") {
             try {
-                await moveFile(sourcePath, destinationPath);
+                await move(sourcePath, destinationPath);
                 alert(`File moved from ${sourcePath} to ${destinationPath}`);
             } catch (error) {
                 console.error("Error moving file:", error);
@@ -88,7 +89,7 @@
 -->
 {#snippet leaf(entry: Entry, depth: number = 0)}
     <div style="padding-left: {depth > 0 ? 24 : 0}px;">
-        <label
+        <div
             bind:this={entry.element}
             role="input"
             ondragover={(e) => {e.preventDefault();}}
@@ -119,7 +120,7 @@
                 console.log("dataTransfer", event.dataTransfer?.getData("text/path"));
                 const sourcePath = event.dataTransfer?.getData("text/path");
                 if (sourcePath && entry.kind === "directory") {
-                    const name = event.dataTransfer?.setData("text/path/name", entry.name);
+                    const name = event.dataTransfer?.getData("text/path/name", entry.name);
                     const destinationPath = entry.relativePath + "/" + name;
                     console.log("moving file to", destinationPath);
                     moveFile(sourcePath, destinationPath);
@@ -152,7 +153,7 @@
                 // keep focused entry so you can create new files/folders inside it
                 // focusedEntry = undefined; 
             }}
-            class="{focusedEntry === entry ? 'bg-base-300' : ''} focus:outline-none mb-1 relative rounded bg-base-200 group w-full pl-2 inline-block"
+            class="{focusedEntry === entry ? 'bg-base-300' : ''} focus:outline-none relative rounded bg-base-200 group w-full pl-2 inline-block"
         >
             <label class="{entry.isEditing ? '' : 'pointer-events-none'} flex items-center justify-start gap-2 focus:outline-none">
                 {#if entry.relativePath === ""}
@@ -161,7 +162,7 @@
                 {:else if entry.kind === "file"}
                     <FileIcon class="w-5" name={entry.name}></FileIcon>
                 {:else}
-                    <FolderIcon class="w-5" name={entry.name}></FolderIcon>
+                    <FolderIcon class="w-5" name={entry.name} bind:open={entry.isOpen}></FolderIcon>
                 {/if}
                 {#if entry.relativePath === ""}
                     <span>Files</span>
@@ -202,10 +203,20 @@
                     </div>
                 {/if}
                 -->
-                </label>
-        </label>
+            </label>
+            <button onclick={() => {
+                // console.log('toggling open for', entry.name);
+                entry.isOpen = !entry.isOpen;
+            }} class="inline-block absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-base-300 {entry.entries && Object.keys(entry.entries).length > 0 ? '' : 'invisible'}">
+                {#if entry.isOpen}
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                {:else}
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                {/if}
+            </button>
+        </div>
         {#if entry.entries && Object.keys(entry.entries).length > 0}
-            <div class="space-y-1">
+            <div class="{entry.isOpen ? 'block' : 'hidden'}">
                 {#each Object.entries(entry.entries) as [subKey, subValue] (subKey)}
                     {@render leaf(subValue, depth + 1)}
                 {/each}

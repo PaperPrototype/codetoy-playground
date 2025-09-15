@@ -18,7 +18,7 @@ export interface NonRecursiveEntry {
 export async function* getFilesNonRecursively(dir: FileSystemDirectoryHandle): AsyncGenerator<(NonRecursiveEntry & FileSystemFileHandle) | (NonRecursiveEntry & FileSystemDirectoryHandle), void, unknown> {
     const stack = [[dir, "", undefined, 0]];
     while (stack.length) {
-        const [current, prefix, parentDir, depth] = stack.pop();
+        const [current, prefix, parentDir, depth]:any = stack.pop();
         current.path = prefix + current.name;
         current.parentDir = parentDir;
         current.depth = depth;
@@ -62,6 +62,8 @@ export async function moveFile(sourcePath: string, destinationPath: string): Pro
     if (!destFilename) {
         throw new Error(`Invalid destination path: ${destinationPath}`);
     }
+
+    console.log('uploading...', destinationPath);
 
     // Create the destination file and write contents
     uploadFile(file, destinationPath);
@@ -148,7 +150,7 @@ export async function listContents(directoryHandle: FileSystemDirectoryHandle | 
     }
 }
 
-export type Entry = { element?: HTMLElement, isEditing: boolean, name: string, kind: string, size?: number, type?: string, lastModified?: number, relativePath: string, entries?: { [key: string]: Entry }, handle: FileSystemFileHandle | FileSystemDirectoryHandle }
+export type Entry = { element?: HTMLElement, isEditing: boolean, isOpen: boolean, name: string, kind: string, size?: number, type?: string, lastModified?: number, relativePath: string, entries?: { [key: string]: Entry }, handle: FileSystemFileHandle | FileSystemDirectoryHandle }
 
 export async function listEntriesDetailed(directoryHandle: FileSystemDirectoryHandle, relativePath = ''): Promise<{ [key: string]: Entry }> {
 
@@ -198,6 +200,8 @@ export async function listEntriesDetailed(directoryHandle: FileSystemDirectoryHa
                         entries:
                             await listEntriesDetailed(handle, nestedPath),
                         handle,
+                        isOpen: true,
+                        isEditing: false
                     };
                 })(),
             );

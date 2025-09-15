@@ -14,17 +14,22 @@ self.onmessage = async (event) => {
 async function upload(payload: { file: File, filepath: string }) {
     const { file, filepath } = payload;
 
+    console.log('WORKER: Uploading file to', filepath);
+
     const opfsRoot = await navigator.storage.getDirectory();
 
     // Split the filepath into directory parts and filename
-    const parts = filepath.split('/');
+    const parts = filepath.split('/').slice(1); // all but the first part
     const filename = parts.pop()!;
     let currentDir = opfsRoot;
 
     // Create any necessary subdirectories
     for (const part of parts) {
+        console.log('WORKER: subdirectories part:', part);
         currentDir = await currentDir.getDirectoryHandle(part, { create: true });
     }
+
+    console.log('WORKER: getFileHandle filename:', filename);
 
     const fileHandle = await currentDir.getFileHandle(filename, { create: true });
 
@@ -144,11 +149,18 @@ async function recursiveCopy(sourceDir: FileSystemDirectoryHandle, destinationDi
 }
 
 async function writeFile(file: FileSystemFileHandle, contents: File) {
-    const handle = await file.createSyncAccessHandle();
-    handle.truncate(0);
-    if (contents.arrayBuffer) handle.write(await contents.arrayBuffer());
-    handle.flush();
-    handle.close();
+    if ('createSyncAccessHandle' in file) {
+        const handle = await (file as any).createSyncAccessHandle();
+        handle.truncate(0);
+        if (contents.arrayBuffer) handle.write(await contents.arrayBuffer());
+        handle.flush();
+        handle.close();
+    } else if ('createWritable' in file) {
+        const writable = await file.createWritable();
+        writable.truncate(0);
+        await writable.write(contents);
+        await writable.close();
+    }
 }
 
 async function removeDirectoryFast(dir: FileSystemDirectoryHandle) {
