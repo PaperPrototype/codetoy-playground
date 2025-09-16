@@ -5,6 +5,7 @@ if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage
 
 import FileWorker from '$lib/components/FileViewer/worker?worker';
 const fileWorker = new FileWorker();
+const MAX_RECURSION = 100;
 
 // DOCS https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system
 
@@ -84,6 +85,56 @@ export function moveFolder(sourcePath: string, destinationPath: string): boolean
     return true;
 }
 
+export async function deleteFolder(path: string) {
+    // fileWorker.postMessage({ type: "deleteFolder", payload: { path } });
+    // const { path } = payload;
+
+    try {
+        const opfsRoot = await navigator.storage.getDirectory()
+        // Get source directory
+        const sourcePathParts = path.split('/').slice(1); // remove empty first part
+        let dir = opfsRoot;
+        let parent = opfsRoot;
+        for (const part of sourcePathParts) {
+            parent = dir; // previous value of dir
+            dir = await dir.getDirectoryHandle(part, { create: false });
+        }
+
+        await removeDirectoryFast(dir);
+
+        // cannot delete root folder
+        if (path !== '') await parent.removeEntry(dir.name);
+    } catch (error) {
+        console.error(`Error clearing folder of ${path}:`, error);
+        throw error;
+    }
+    return true;
+}
+
+async function removeDirectoryFast(dir: FileSystemDirectoryHandle) {
+    const toDelete: any[] = [];
+    let maxDepth = 0;
+    for await (const fileHandle
+        of getFilesNonRecursively(dir)) {
+        maxDepth = Math.max(maxDepth, fileHandle.depth);
+        toDelete.push(fileHandle);
+    }
+    async function deleteAtDepth(depth: number) {
+        for (const f of toDelete) {
+            if (f.depth === depth) {
+                await f.parentDir.removeEntry(f.name,
+                    { recursive: true });
+            }
+        }
+    }
+    const increment = 500; // Works empirically in Firefox.
+    for (let depth = maxDepth; depth > 1; depth -= increment) {
+        await deleteAtDepth(depth);
+    }
+    await deleteAtDepth(1);
+}
+
+
 export async function findFileHandleParent(filepath: string): Promise<FileSystemDirectoryHandle | undefined> {
     const opfsRoot = await navigator.storage.getDirectory();
     const parts = filepath.split('/');
@@ -150,9 +201,9 @@ export async function listContents(directoryHandle: FileSystemDirectoryHandle | 
     }
 }
 
-export type Entry = { element?: HTMLElement, isEditing: boolean, isOpen: boolean, name: string, kind: string, size?: number, type?: string, lastModified?: number, relativePath: string, entries?: { [key: string]: Entry }, handle: FileSystemFileHandle | FileSystemDirectoryHandle }
+export type Entry = { element?: HTMLElement, isEditing: boolean, inputElement?: HTMLInputElement, isDirectoryOpen: boolean, name: string, kind: string, size?: number, type?: string, lastModified?: number, relativePath: string, entries?: { [key: string]: Entry }, handle: FileSystemFileHandle | FileSystemDirectoryHandle }
 
-export async function listEntriesDetailed(directoryHandle: FileSystemDirectoryHandle, relativePath = ''): Promise<{ [key: string]: Entry }> {
+export async function listEntriesDetailed(directoryHandle: FileSystemDirectoryHandle, depth = 0, relativePath = ''): Promise<{ [key: string]: Entry }> {
 
     function sort(entries: { [key: string]: Entry }): { [key: string]: Entry } {
         return Object.fromEntries(
@@ -167,6 +218,8 @@ export async function listEntriesDetailed(directoryHandle: FileSystemDirectoryHa
     const fileHandles: { handle: FileSystemFileHandle, nestedPath: string }[] = [];
     const directoryHandles = [];
     const entries: any = {};
+
+    if (depth >= MAX_RECURSION) return entries;
 
     // Get an iterator of the files and folders in the directory.
     // @ts-ignore: 'values' is a valid method on FileSystemDirectoryHandle
@@ -185,6 +238,8 @@ export async function listEntriesDetailed(directoryHandle: FileSystemDirectoryHa
                         type: file.type,
                         lastModified: file.lastModified,
                         relativePath: nestedPath,
+                        isContextMenuOpen: false,
+                        isEditing: false,
                         handle
                     };
                 }),
@@ -197,10 +252,11 @@ export async function listEntriesDetailed(directoryHandle: FileSystemDirectoryHa
                         name: handle.name,
                         kind: handle.kind,
                         relativePath: nestedPath,
+                        isContextMenuOpen: false,
                         entries:
-                            await listEntriesDetailed(handle, nestedPath),
+                            await listEntriesDetailed(handle, depth + 1, nestedPath),
                         handle,
-                        isOpen: true,
+                        isDirectoryOpen: true,
                         isEditing: false
                     };
                 })(),
@@ -211,5 +267,6 @@ export async function listEntriesDetailed(directoryHandle: FileSystemDirectoryHa
     directoryEntries.forEach((directoryEntry: any) => {
         entries[directoryEntry.name] = directoryEntry;
     });
+
     return sort(entries);
 };

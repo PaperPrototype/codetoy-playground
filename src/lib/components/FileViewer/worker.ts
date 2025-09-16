@@ -6,7 +6,7 @@ self.onmessage = async (event) => {
 
     if (type === "upload") await upload(payload);               // {file, filepath} upload a single file
     else if (type === "moveFolder") await moveFolder(payload);  // {sourcePath, destinationPath} move a folder
-    else if (type === "clear") await clear(payload);            // {path} clear the entire directory recursively
+    else if (type === "deleteFolder") await deleteFolder(payload);            // {path} clear the entire directory recursively
     else if (type === "remove") await remove(payload);          // {path} delete a single file
     else console.error(`Unknown message type: ${type}`);
 }
@@ -42,21 +42,23 @@ async function moveFolder(payload: { sourcePath: string, destinationPath: string
 
     try {
         // Get source directory
-        const sourcePathParts = sourcePath.split('/');
+        const sourcePathParts = sourcePath.split('/').slice(1);
         let sourceDir = opfsRoot;
+        let parentSourceDir = opfsRoot;
         for (const part of sourcePathParts) {
+            parentSourceDir = sourceDir;
             sourceDir = await sourceDir.getDirectoryHandle(part, { create: false });
         }
 
         // Create destination directory
-        const destPathParts = destinationPath.split('/');
+        const destPathParts = destinationPath.split('/').slice(1);
         let destDir = opfsRoot;
         for (const part of destPathParts) {
             destDir = await destDir.getDirectoryHandle(part, { create: true });
         }
 
         // Copy all files from source to destination
-        recursiveCopy(sourceDir, destDir);
+        await recursiveCopy(sourceDir, destDir);
         // The method below would not copy all files properly
         // // @ts-ignore: 'values' is a valid method on FileSystemDirectoryHandle
         // for await (const entry of sourceDir.values()) {
@@ -68,29 +70,13 @@ async function moveFolder(payload: { sourcePath: string, destinationPath: string
         //     }
         // }
 
-        removeDirectoryFast(sourceDir);
+        // Delete original directory (and all its contents)
+        await removeDirectoryFast(sourceDir);
 
-
+        // finally remove the parent folder if it is not the root
+        await parentSourceDir.removeEntry(sourceDir.name);
     } catch (error) {
         console.error(`Error moving folder from ${sourcePath} to ${destinationPath}:`, error);
-        throw error;
-    }
-}
-
-async function clear(payload: { path: string }) {
-    const { path } = payload;
-
-    try {
-        const opfsRoot = await navigator.storage.getDirectory()
-        // Get source directory
-        const sourcePathParts = path.split('/');
-        let dir = opfsRoot;
-        for (const part of sourcePathParts) {
-            dir = await dir.getDirectoryHandle(part, { create: false });
-        }
-        removeDirectoryFast(dir);
-    } catch (error) {
-        console.error(`Error clearing folder of ${path}:`, error);
         throw error;
     }
 }
@@ -107,7 +93,6 @@ async function clear(payload: { path: string }) {
 //         console.error(`Error removing file: ${path}`, error);
 //     }
 // }
-
 async function remove(payload: { path: string }) {
     const { path } = payload;
     const opfsRoot = await navigator.storage.getDirectory();
@@ -127,6 +112,28 @@ async function remove(payload: { path: string }) {
     } catch (error) {
         console.error(`Error removing file: ${path}`, error);
     }
+}
+
+export async function deleteFolder(path: string) {
+    try {
+        const opfsRoot = await navigator.storage.getDirectory()
+        // Get source directory
+        const sourcePathParts = path.split('/').slice(1); // remove empty first part
+        let dir = opfsRoot;
+        let parent = opfsRoot;
+        for (const part of sourcePathParts) {
+            parent = dir; // previous value of dir
+            dir = await dir.getDirectoryHandle(part, { create: false });
+        }
+
+        await removeDirectoryFast(dir);
+
+        await parent.removeEntry(dir.name);
+    } catch (error) {
+        console.error(`Error clearing folder of ${path}:`, error);
+        throw error;
+    }
+    return true;
 }
 
 // UTILS
