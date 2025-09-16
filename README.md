@@ -1,7 +1,6 @@
-
 # The Playground
 
-https://github.com/user-attachments/assets/a5a18c00-b8d1-45cd-8706-a1305f7e8fc5
+https://github.com/user-attachments/assets/ef293227-3400-4300-9a67-61547e574f31
 
 # How to Contribute
 
