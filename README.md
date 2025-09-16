@@ -1,6 +1,27 @@
-# The Playground
+Open source playground to-be-used in [Codetoy.io](https://codetoy.io) for making multiplayer browser games through WebWorkers and OffscreenCanvas.
 
 https://github.com/user-attachments/assets/ef293227-3400-4300-9a67-61547e574f31
+
+This playground facitilates a `postMessage` and `addEventListener` protocol allowing worker scripts to send and receive messages.
+
+```js
+// Example code to draw a red rectangle
+self.onmessage = function({data: {type, payload}}) {
+    if (type === 'start') {
+        // start message includes an OffscreenCanvas
+        const canvas = payload;
+
+        // CanvasRenderingContext2D
+        const context2D = canvas.getContext('2d');
+
+        // red background
+        context2D.fillStyle = 'red';
+        context2D.fillRect(0, 0, canvas.width, canvas.height);
+    }
+}
+```
+
+A "start" message with an OffscreenCanvas allows games to be developed with WebGL, WebGPU, and CanvasRenderingContext2D.
 
 # How to Contribute
 
