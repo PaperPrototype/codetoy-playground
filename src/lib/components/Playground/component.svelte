@@ -6,17 +6,16 @@
     let console: LunaConsole;
     let canvasContainer: HTMLElement;
     let code = `
-import confetti from 'https://esm.sh/canvas-confetti@1.6.0';
-
 // Example code to draw a red rectangle
 self.onmessage = function({data: {type, payload}}) {
     if (type === 'start') {
+        // start message includes an OffscreenCanvas
         const canvas = payload;
-        // console.log('Worker started', payload);
 
+        // CanvasRenderingContext2D
         const context2D = canvas.getContext('2d');
-        // console.log('context2D', context2D);
 
+        // red background
         context2D.fillStyle = 'red';
         context2D.fillRect(0, 0, canvas.width, canvas.height);
     }
