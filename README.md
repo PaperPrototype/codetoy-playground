@@ -1,4 +1,4 @@
-Open source playground to-be-used in [Codetoy.io](https://codetoy.io) for making multiplayer browser games through WebWorkers and OffscreenCanvas.
+Open source playground soon to be used in [Codetoy.io](https://codetoy.io) for making multiplayer browser games through WebWorkers and OffscreenCanvas.
 
 https://github.com/user-attachments/assets/ef293227-3400-4300-9a67-61547e574f31
 
