@@ -1,4 +1,6 @@
-Open source playground soon to be used in [Codetoy.io](https://codetoy.io) for making multiplayer browser games through WebWorkers and OffscreenCanvas.
+Open source playground for making browser games. Includes a real file system that scripts can access. Originally developed for [Codetoy.io](https://codetoy.io) for making multiplayer browser games. 
+
+[Join the discord!](https://discord.gg/RjGwXa3jmp)
 
 https://github.com/user-attachments/assets/ef293227-3400-4300-9a67-61547e574f31
 
@@ -48,7 +50,7 @@ npm run dev -- --open
 
 Open the url that shows up (eg. `http://localhost:5173/`) and you should see a playground with code editing!
 
-# What Will I Be Making?
+# How Does A Playground Work?
 The Playground component we are making looks like this:
 
 ```svelte
