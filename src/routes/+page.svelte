@@ -11,10 +11,11 @@
         // });
         // console.log(await resp.json())
 
-        const response = await fetch(
-            `https://discord.com/api/v9/invites/RjGwXa3jmp?with_counts=true`
-        );
-        console.log('response', await response.json());
+        // random shit that I was testing
+        // const response = await fetch(
+        //     `https://discord.com/api/v9/invites/RjGwXa3jmp?with_counts=true`
+        // );
+        // console.log('response', await response.json());
     })
 </script>
 
