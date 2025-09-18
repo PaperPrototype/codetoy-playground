@@ -7,7 +7,7 @@
     import FileIcon from "./icons/FileIcon.svelte";
 
     interface Props {
-        select: (path: string, entry: Entry) => void;
+        select: (entry: Entry) => void;
         reload: (rootEntry: Entry) => void;
     }
     let { select, reload }: Props = $props()
@@ -105,6 +105,20 @@
         }
     }
 
+    async function deleteFile(path: string) {
+        if (!confirm(`Are you sure you want to delete the file at ${path}?`)) {
+            return;
+        }
+
+        const {deleteFile: deleteFn} = await import("$lib/components/FileViewer/files.js");
+        try {
+            await deleteFn(path);
+        } catch (error) {
+            console.error("Error deleting folder:", error);
+            alert("Failed to delete folder. See console for details.");
+        }
+    }
+
     function filesDropHandler(event: DragEvent) {
         event.preventDefault();
         // Use DataTransferItemList interface to access the file(s)
@@ -189,10 +203,9 @@
             }}
             onclick={(event: PointerEvent) => {
                 // event.preventDefault();
-                select(entry.relativePath, entry)
+                select(entry)
                 event.target && (event.target as HTMLElement).focus();
                 focusedEntry = entry;
-                console.log("clicked", entry.relativePath);
             }}
             oncontextmenu={(event) => {
                 event.preventDefault();
@@ -200,7 +213,6 @@
                 contextmenu.entry = entry;
                 contextmenu.x = event.clientX;
                 contextmenu.y = event.clientY;
-                console.log("right click", entry.relativePath);
             }}
             dropped="true"
             use:outside
@@ -317,23 +329,29 @@
                     deleteFolder(contextmenu.entry!.relativePath);
                     contextmenu.entry = undefined;
                 }}>Delete Folder</button>
+            {:else}
+                <button class="btn btn-sm w-full" onclick={(event) => {
+                    console.log('delete folder clicked');
+                    deleteFile(contextmenu.entry!.relativePath);
+                    contextmenu.entry = undefined;
+                }}>Delete File</button>
             {/if}
         </div>
     {/if}
     <div>
-        <button onclick={() => {
-            createFolder(focusedEntry || rootEntry!);
-        }} class="btn btn-sm">
-            <!-- folder icon -->
-            <span>+</span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
-        </button>
         <button class="btn btn-sm" onclick={() => {
             createFile(focusedEntry || rootEntry!);
         }}>
             <!-- file icon -->
             <span>+</span>
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V7.414a2 2 0 00-.586-1.414l-4.414-4.414A2 2 0 0014.586 1H7a2 2 0 00-2 2v16a2 2 0 002 2z" /></svg>
+        </button>
+        <button onclick={() => {
+            createFolder(focusedEntry || rootEntry!);
+        }} class="btn btn-sm">
+            <!-- folder icon -->
+            <span>+</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
         </button>
         <button class="btn btn-sm" onclick={reloadEntries}>
             reload

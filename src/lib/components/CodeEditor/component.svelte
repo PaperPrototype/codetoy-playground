@@ -14,17 +14,103 @@
     }
 
     interface Props {
-        value: string;
         class?: string;
         editor?: Editor.IStandaloneCodeEditor;
         monaco?: typeof Monaco;
+        saved: (model: Editor.ITextModel, entry: Entry) => void;
+        edited: () => void;
         mounted?: (
             monaco: typeof Monaco,
             editor: Editor.IStandaloneCodeEditor,
         ) => void | undefined;
     }
 
+    let {
+        saved,
+        edited,
+        // value = $bindable(),
+        class: className = "",
+        mounted = undefined as
+            | ((
+                  monaco: typeof Monaco,
+                  editor: Editor.IStandaloneCodeEditor,
+              ) => void)
+            | undefined,
+    }: Props = $props();
+
+    let editorContainer: HTMLElement;
+
+    onMount(async () => {
+        if (!monaco) {
+            monaco = (await import("./instance.js")).default;
+        }
+
+        if (!editor) {
+            monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
+            monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
+
+            // monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+            //     noSemanticValidation: true,
+            //     noSyntaxValidation: true,
+            //     noSuggestionDiagnostics: true
+            // });
+
+            // monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+            //     noSemanticValidation: true,
+            //     noSyntaxValidation: true,
+            //     noSuggestionDiagnostics: true
+            // });
+
+            editor = monaco.editor.create(editorContainer, {
+                automaticLayout: true,
+                theme: "vs-dark",
+                minimap: {
+                    enabled: false,
+                },
+                // language: "typescript",
+                model: null,
+                autoIndent: "full",
+                formatOnPaste: true,
+                formatOnType: true,
+            });
+
+            const { KeyCode, KeyMod } = await import("monaco-editor");
+
+            editor.addCommand(KeyMod.CtrlCmd | KeyCode.KeyS, (e) => {
+                if (active) saveChanges(active);
+            })
+
+            // if (value) {
+            //     editor.setValue(value);
+            // }
+
+            // Two way binding svelte? https://github.com/ala-garbaa-pro/svelte-5-monaco-editor-two-way-binding
+            editor.onDidChangeModelContent((e) => {
+                if (e.isFlush) {
+                    // true if setValue call
+                    // console.log('setValue call');
+                    /* editor.setValue(value); */
+                } else {
+                    // else, the user made an edit normally
+                    // const updatedValue = editor?.getValue() ?? " ";
+                    // value = updatedValue;
+                    edited();
+                }
+            });
+        }
+
+        if (mounted) {
+            mounted(monaco, editor);
+        }
+    });
+
+    onDestroy(() => {
+        monaco?.editor.getModels().forEach((model) => model.dispose());
+        editor?.dispose();
+    });
+
     async function saveChanges(codetoyModel: CodetoyModel) {
+        saved(codetoyModel.model, codetoyModel.entry);
         const {saveTextFile: save} = await import("$lib/components/FileViewer/files.js");
         save(codetoyModel.model.getValue(), codetoyModel.entry.relativePath);
     }
@@ -37,7 +123,7 @@
         const model = monaco.editor.createModel(
             await (await (entry.handle as FileSystemFileHandle).getFile()).text(),
             undefined,
-            new monaco.Uri().with({ path: entry.relativePath }),
+            new monaco.Uri().with({ path: "/files" + entry.relativePath }),
         );
 
         models[entry.relativePath] = {
@@ -72,104 +158,28 @@
         active = { model, entry };
     }
 
-    let {
-        value = $bindable(),
-        class: className = "",
-        mounted = undefined as
-            | ((
-                  monaco: typeof Monaco,
-                  editor: Editor.IStandaloneCodeEditor,
-              ) => void)
-            | undefined,
-    }: Props = $props();
+    // $effect(() => {
+    //     if (value) {
+    //         if (editor) {
+    //             // check if the editor is focused
+    //             if (editor.hasWidgetFocus()) {
+    //                 // let the user edit with no interference
+    //             } else {
+    //                 if (editor?.getValue() ?? " " !== value) {
+    //                     editor?.setValue(value);
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     if (value === "") {
+    //         editor?.setValue(" ");
+    //     }
+    // });
 
-    let editorContainer: HTMLElement;
-
-    onMount(async () => {
-        if (!monaco) {
-            monaco = (await import("./instance.js")).default;
-        }
-
-        if (!editor) {
-            monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
-            monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
-
-            monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-                noSemanticValidation: true,
-                noSyntaxValidation: true,
-                noSuggestionDiagnostics: true
-            });
-
-            monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-                noSemanticValidation: true,
-                noSyntaxValidation: true,
-                noSuggestionDiagnostics: true
-            });
-
-            editor = monaco.editor.create(editorContainer, {
-                automaticLayout: true,
-                theme: "vs-dark",
-                minimap: {
-                    enabled: false,
-                },
-                // language: "typescript",
-                model: null,
-                autoIndent: "full",
-                formatOnPaste: true,
-                formatOnType: true,
-            });
-
-            const { KeyCode, KeyMod } = await import("monaco-editor");
-
-            editor.addCommand(KeyMod.CtrlCmd | KeyCode.KeyS, (e) => {
-                if (active) saveChanges(active);
-            })
-
-            if (value) {
-                editor.setValue(value);
-            }
-
-            // Two way binding svelte https://github.com/ala-garbaa-pro/svelte-5-monaco-editor-two-way-binding
-            editor.onDidChangeModelContent((e) => {
-                if (e.isFlush) {
-                    // true if setValue call
-                    //console.log('setValue call');
-                    /* editor.setValue(value); */
-                } else {
-                    // console.log('user input');
-                    const updatedValue = editor?.getValue() ?? " ";
-                    value = updatedValue;
-                }
-            });
-        }
-
-        if (mounted) {
-            mounted(monaco, editor);
-        }
-    });
-
-    $effect(() => {
-        if (value) {
-            if (editor) {
-                // check if the editor is focused
-                if (editor.hasWidgetFocus()) {
-                    // let the user edit with no interference
-                } else {
-                    if (editor?.getValue() ?? " " !== value) {
-                        editor?.setValue(value);
-                    }
-                }
-            }
-        }
-        if (value === "") {
-            editor?.setValue(" ");
-        }
-    });
-
-    onDestroy(() => {
-        monaco?.editor.getModels().forEach((model) => model.dispose());
-        editor?.dispose();
-    });
 </script>
 
-<div class={className} bind:this={editorContainer}></div>
+<div class={className + " relative"} bind:this={editorContainer}>
+    <div class="absolute w-full h-full flex items-center justify-center">
+        <p>Click a file to get started</p>
+    </div>
+</div>

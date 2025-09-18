@@ -2,25 +2,27 @@
     import { browser } from "$app/environment";
     import { CodeEditor, LunaConsole, FileViewer} from "$lib/index.js";
     import { onMount } from "svelte";
+    import type { Entry } from "../FileViewer/files.js";
 
     let console: LunaConsole;
     let canvasContainer: HTMLElement;
-    let code = `
-// Example code to draw a red rectangle
-self.onmessage = function({data: {type, payload}}) {
-    if (type === 'start') {
-        // start message includes an OffscreenCanvas
-        const canvas = payload;
+//     let code = `
+//     // Example code to draw a red rectangle
+// self.onmessage = function({data: {type, payload}}) {
+//     if (type === 'start') {
+//         // start message includes an OffscreenCanvas
+//         const canvas = payload;
 
-        // CanvasRenderingContext2D
-        const context2D = canvas.getContext('2d');
+//         // CanvasRenderingContext2D
+//         const context2D = canvas.getContext('2d');
 
-        // red background
-        context2D.fillStyle = 'red';
-        context2D.fillRect(0, 0, canvas.width, canvas.height);
-    }
-}
-`
+//         // red background
+//         context2D.fillStyle = 'red';
+//         context2D.fillRect(0, 0, canvas.width, canvas.height);
+//     }
+// }
+// `
+    let activeEntry: Entry | undefined;
 
     onMount(() => {
         if (!browser) return;
@@ -28,21 +30,34 @@ self.onmessage = function({data: {type, payload}}) {
     });
 
     let worker: Worker | undefined;
-    function runCode() {
+    async function runCode() {
         // clear previous worker and canvas
         worker?.terminate();
         canvasContainer.innerHTML = '';
+
+        if (!activeEntry) return;
 
         const canvas = document.createElement('canvas');
         canvasContainer.appendChild(canvas);
         canvas.width = 400; // pixels
         canvas.height = 400; // pixels
 
-        // we need this to load the code as a script
-        const urlToScript = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
-        
         // create a "worker" to run the code in a separate thread
-        worker = new Worker(urlToScript, { type: 'module' });
+        // activeEntry is a file system entry in OPFS
+        worker = new Worker("/files" + activeEntry.relativePath, { type: 'module' });
+
+        worker.onerror = (err) => {
+            window.console.log("PLAYGROUND WRKR ERR:", err)
+            window.console.log("PLAYGROUND WRKR ERR: error", err.error)
+        }
+
+        worker.onmessage = (event) => {
+            window.console.log("PLAYGROUND WRKR MSG:", event)
+        }
+
+        worker.onmessageerror = (err) => {
+            window.console.log("PLAYGROUND WRKR MSG ERR:", err)
+        }
 
         // get an OffscreenCanvas https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas
         const offscreenCanvas = canvas.transferControlToOffscreen();
@@ -56,17 +71,23 @@ self.onmessage = function({data: {type, payload}}) {
 <button class="btn" onclick={runCode}>Run</button>
 
 <div class="grid grid-cols-3">
-    <FileViewer 
-    select={async (path, entry) => {
-        if (entry.kind === "directory") return;
-        const file = await (entry.handle as FileSystemFileHandle).getFile();
-        window.console.log(path, file)
-        codeEditor?.select(entry);
-    }} 
-    reload={(rootEntry) => {
-        if (codeEditor) codeEditor.reload(rootEntry);
-    }} />
-    <CodeEditor bind:this={codeEditor} bind:value={code} class="min-h-96 w-full" />
+    <FileViewer
+        select={async (entry) => {
+            if (entry.kind === "directory") return;
+            codeEditor?.select(entry);
+            activeEntry = entry;
+        }} 
+        reload={(rootEntry) => {
+            if (codeEditor) codeEditor.reload(rootEntry);
+        }}/>
+    <CodeEditor
+        bind:this={codeEditor} class="min-h-96 w-full" 
+        edited={() => {
+            
+        }}
+        saved={(model, entry) => {
+            
+        }}/>
     <div bind:this={canvasContainer}></div>
 </div>
 

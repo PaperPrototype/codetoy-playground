@@ -90,6 +90,21 @@ export function moveFolder(sourcePath: string, destinationPath: string): boolean
     return true;
 }
 
+export async function deleteFile(filepath: string) {
+    const parts = filepath.split('/');
+    const filename = parts.pop();
+
+    if (!filename) return undefined;
+
+    try {
+        const parentFolder = await findFileHandleParent(filepath);
+        if (parentFolder) return await parentFolder.removeEntry(filename);
+    } catch (error) {
+        console.error(`Error clearing folder of ${filepath}:`, error);
+        throw error;
+    }
+}
+
 export async function deleteFolder(path: string) {
     // fileWorker.postMessage({ type: "deleteFolder", payload: { path } });
     // const { path } = payload;
@@ -113,7 +128,6 @@ export async function deleteFolder(path: string) {
         console.error(`Error clearing folder of ${path}:`, error);
         throw error;
     }
-    return true;
 }
 
 async function removeDirectoryFast(dir: FileSystemDirectoryHandle) {
@@ -138,7 +152,6 @@ async function removeDirectoryFast(dir: FileSystemDirectoryHandle) {
     }
     await deleteAtDepth(1);
 }
-
 
 export async function findFileHandleParent(filepath: string): Promise<FileSystemDirectoryHandle | undefined> {
     const opfsRoot = await navigator.storage.getDirectory();
