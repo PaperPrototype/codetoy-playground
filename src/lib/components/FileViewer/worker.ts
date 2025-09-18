@@ -5,10 +5,36 @@ self.onmessage = async (event) => {
     }
 
     if (type === "upload") await upload(payload);               // {file, filepath} upload a single file
+    else if (type === "savetext") await saveText(payload);               // {file, filepath} upload a single file
     else if (type === "moveFolder") await moveFolder(payload);  // {sourcePath, destinationPath} move a folder
     else if (type === "deleteFolder") await deleteFolder(payload);            // {path} clear the entire directory recursively
     else if (type === "remove") await remove(payload);          // {path} delete a single file
     else console.error(`Unknown message type: ${type}`);
+}
+
+async function saveText(payload: { text: string, filepath: string }) {
+    const { text, filepath } = payload;
+
+    console.log('WORKER: Uploading file to', filepath);
+
+    const opfsRoot = await navigator.storage.getDirectory();
+
+    // Split the filepath into directory parts and filename
+    const parts = filepath.split('/').slice(1); // all but the first part
+    const filename = parts.pop()!;
+    let currentDir = opfsRoot;
+
+    // Create any necessary subdirectories
+    for (const part of parts) {
+        console.log('WORKER: subdirectories part:', part);
+        currentDir = await currentDir.getDirectoryHandle(part, { create: true });
+    }
+
+    console.log('WORKER: getFileHandle filename:', filename);
+
+    const fileHandle = await currentDir.getFileHandle(filename, { create: true });
+
+    await writeText(fileHandle, text);
 }
 
 async function upload(payload: { file: File, filepath: string }) {
@@ -155,11 +181,29 @@ async function recursiveCopy(sourceDir: FileSystemDirectoryHandle, destinationDi
     }
 }
 
+async function writeText(file: FileSystemFileHandle, contents: string) {
+    if ('createSyncAccessHandle' in file) {
+        const handle = (await (file as any).createSyncAccessHandle());
+        const encoder = new TextEncoder();
+        const encodedText = encoder.encode(contents); // Returns a Uint8Array
+        const arrayBuffer = encodedText.buffer; // The underlying ArrayBuffer
+        handle.truncate(0);
+        handle.write(arrayBuffer, {at: 0});
+        handle.flush();
+        handle.close();
+    } else if ('createWritable' in file) {
+        const writable = await file.createWritable();
+        writable.truncate(0);
+        await writable.write(contents);
+        await writable.close();
+    }
+}
+
 async function writeFile(file: FileSystemFileHandle, contents: File) {
     if ('createSyncAccessHandle' in file) {
-        const handle = await (file as any).createSyncAccessHandle();
+        const handle = (await (file as any).createSyncAccessHandle());
         handle.truncate(0);
-        if (contents.arrayBuffer) handle.write(await contents.arrayBuffer());
+        if (contents.arrayBuffer) handle.write(await contents.arrayBuffer(), {at: 0});
         handle.flush();
         handle.close();
     } else if ('createWritable' in file) {

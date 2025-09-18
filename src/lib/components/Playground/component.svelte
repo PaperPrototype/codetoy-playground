@@ -49,13 +49,24 @@ self.onmessage = function({data: {type, payload}}) {
 
         worker.postMessage({ type: 'start', payload: offscreenCanvas }, [offscreenCanvas]);
     }
+
+    let codeEditor: CodeEditor | undefined = $state();
 </script>
 
 <button class="btn" onclick={runCode}>Run</button>
 
 <div class="grid grid-cols-3">
-    <FileViewer />
-    <CodeEditor bind:value={code} class="min-h-96 w-full" />
+    <FileViewer 
+    select={async (path, entry) => {
+        if (entry.kind === "directory") return;
+        const file = await (entry.handle as FileSystemFileHandle).getFile();
+        window.console.log(path, file)
+        codeEditor?.select(entry);
+    }} 
+    reload={(rootEntry) => {
+        if (codeEditor) codeEditor.reload(rootEntry);
+    }} />
+    <CodeEditor bind:this={codeEditor} bind:value={code} class="min-h-96 w-full" />
     <div bind:this={canvasContainer}></div>
 </div>
 

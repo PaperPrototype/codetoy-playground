@@ -41,6 +41,11 @@ export function uploadFile(file: File, filepath: string): boolean {
     return true;
 }
 
+export function saveTextFile(text: string, filepath: string): boolean {
+    fileWorker.postMessage({ type: "savetext", payload: { text, filepath } });
+    return true;
+}
+
 export async function moveFile(sourcePath: string, destinationPath: string): Promise<void> {
     // Find the source file handle
     const sourceFileHandle = await findFileHandle(sourcePath);

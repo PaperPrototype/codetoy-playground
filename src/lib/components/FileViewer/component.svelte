@@ -6,6 +6,12 @@
     import FolderIcon from "./icons/FolderIcon.svelte";
     import FileIcon from "./icons/FileIcon.svelte";
 
+    interface Props {
+        select: (path: string, entry: Entry) => void;
+        reload: (rootEntry: Entry) => void;
+    }
+    let { select, reload }: Props = $props()
+
     const MAX_RECURSION = 100;
 
     interface ContextMenu {
@@ -36,6 +42,7 @@
             isDirectoryOpen: true,
             entries: await listEntriesDetailed(rootDir),
         };
+        reload(rootEntry);
     }
 
     async function createFolder(entry: Entry) {
@@ -182,6 +189,7 @@
             }}
             onclick={(event: PointerEvent) => {
                 // event.preventDefault();
+                select(entry.relativePath, entry)
                 event.target && (event.target as HTMLElement).focus();
                 focusedEntry = entry;
                 console.log("clicked", entry.relativePath);
