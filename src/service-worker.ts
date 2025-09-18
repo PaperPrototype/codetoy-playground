@@ -15,6 +15,8 @@ import {transform} from "sucrase"
 // This gives `self` the correct types
 const serviceWorker = self as unknown as ServiceWorkerGlobalScope;
 
+const ROOTPATH = "/files"
+
 serviceWorker.addEventListener("fetch", async (event) => {
     // console.log("SERVICE: event", event);
 
@@ -26,8 +28,10 @@ serviceWorker.addEventListener("fetch", async (event) => {
             return fetch(event.request);
         }
 
+        console.log("SERVICE: ", urlObj.pathname)
+
         // get the requested file
-        const filepath = urlObj.pathname.slice(6);
+        const filepath = urlObj.pathname.slice(ROOTPATH.length);
         const fileHandle = (await findFileHandle(filepath)) as FileSystemFileHandle;
         if (fileHandle) {
             const file = await fileHandle.getFile()
@@ -51,6 +55,7 @@ serviceWorker.addEventListener("fetch", async (event) => {
             }));
         }
 
+        console.log("SERVICE: 404 not found filepath", filepath)
         return new Response(undefined, {status: 404, statusText: "File not found"})
     }
 

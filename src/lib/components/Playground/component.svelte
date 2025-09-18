@@ -7,7 +7,10 @@
     let console: LunaConsole;
     let canvasContainer: HTMLElement;
 //     let code = `
-//     // Example code to draw a red rectangle
+
+// import { multiply } from "/files/lib.js"
+
+// // Example code to draw a red rectangle
 // self.onmessage = function({data: {type, payload}}) {
 //     if (type === 'start') {
 //         // start message includes an OffscreenCanvas
@@ -18,9 +21,10 @@
 
 //         // red background
 //         context2D.fillStyle = 'red';
-//         context2D.fillRect(0, 0, canvas.width, canvas.height);
+//         context2D.fillRect(0, 0, multiply(canvas.width, 1), canvas.height);
 //     }
 // }
+
 // `
     let activeEntry: Entry | undefined;
 
@@ -42,9 +46,17 @@
         canvas.width = 400; // pixels
         canvas.height = 400; // pixels
 
+        const url = "/files" + activeEntry.relativePath;
+        // const resp = await fetch(url);
+        // window.console.log("PLAYGROUND: fetch code response", resp)
+        // const srcCode = await resp.text();
+        // window.console.log("PLAYGROUND: srcCode", srcCode)
+        // const blobUrl = URL.createObjectURL(new Blob([srcCode], {type: "text/javascript"}));
+        // window.console.log("PLAYGROUND BLOB URL:", url)
+
         // create a "worker" to run the code in a separate thread
         // activeEntry is a file system entry in OPFS
-        worker = new Worker("/files" + activeEntry.relativePath, { type: 'module' });
+        worker = new Worker(url, { type: 'module' });
 
         worker.onerror = (err) => {
             window.console.log("PLAYGROUND WRKR ERR:", err)
@@ -68,7 +80,7 @@
     let codeEditor: CodeEditor | undefined = $state();
 </script>
 
-<button class="btn" onclick={runCode}>Run</button>
+<button class="btn mx-2 mt-2" onclick={runCode}>Run</button>
 
 <div class="grid grid-cols-3">
     <FileViewer
