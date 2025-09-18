@@ -7,6 +7,8 @@ import FileWorker from '$lib/components/FileViewer/worker?worker';
 const fileWorker = new FileWorker();
 const MAX_RECURSION = 100;
 
+import { findFileHandle, findFileHandleParent } from './shared.js';
+
 // DOCS https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system
 
 export interface NonRecursiveEntry {
@@ -36,58 +38,20 @@ export async function* getFilesNonRecursively(dir: FileSystemDirectoryHandle): A
     }
 }
 
-export function uploadFile(file: File, filepath: string): boolean {
+export function uploadFile(file: File, filepath: string) {
     fileWorker.postMessage({ type: "upload", payload: { file, filepath } });
-    return true;
 }
 
-export function saveTextFile(text: string, filepath: string): boolean {
+export function saveTextFile(text: string, filepath: string) {
     fileWorker.postMessage({ type: "savetext", payload: { text, filepath } });
-    return true;
 }
 
 export async function moveFile(sourcePath: string, destinationPath: string): Promise<void> {
-    // Find the source file handle
-    const sourceFileHandle = await findFileHandle(sourcePath);
-    if (!sourceFileHandle) {
-        throw new Error(`Source file not found: ${sourcePath}`);
-    }
-
-    // Read the file contents
-    const file = await sourceFileHandle.getFile();
-
-    // Find/create the destination parent directory
-    const destParent = await findFileHandleParent(destinationPath);
-    if (!destParent) {
-        throw new Error(`Destination parent directory not found: ${destinationPath}`);
-    }
-
-    // Get the destination filename
-    const destParts = destinationPath.split('/');
-    const destFilename = destParts.pop();
-    if (!destFilename) {
-        throw new Error(`Invalid destination path: ${destinationPath}`);
-    }
-
-    console.log('uploading...', destinationPath);
-
-    // Create the destination file and write contents
-    uploadFile(file, destinationPath);
-
-    // Remove the source file
-    const sourceParent = await findFileHandleParent(sourcePath);
-    if (sourceParent) {
-        const sourceParts = sourcePath.split('/');
-        const sourceFilename = sourceParts.pop();
-        if (sourceFilename) {
-            await sourceParent.removeEntry(sourceFilename);
-        }
-    }
+   fileWorker.postMessage({ type: "moveFile", payload: {sourcePath, destinationPath}})
 }
 
-export function moveFolder(sourcePath: string, destinationPath: string): boolean {
+export function moveFolder(sourcePath: string, destinationPath: string) {
     fileWorker.postMessage({ type: "moveFolder", payload: { sourcePath, destinationPath } });
-    return true;
 }
 
 export async function deleteFile(filepath: string) {
@@ -151,43 +115,6 @@ async function removeDirectoryFast(dir: FileSystemDirectoryHandle) {
         await deleteAtDepth(depth);
     }
     await deleteAtDepth(1);
-}
-
-export async function findFileHandleParent(filepath: string): Promise<FileSystemDirectoryHandle | undefined> {
-    const opfsRoot = await navigator.storage.getDirectory();
-    const parts = filepath.split('/');
-    parts.pop(); // remove the filename from the path
-
-    try {
-        let currentDir: FileSystemDirectoryHandle = opfsRoot;
-        for (const part of parts) {
-            if (part) {
-                currentDir = await currentDir.getDirectoryHandle(part, { create: false });
-            }
-        }
-        return currentDir;
-    } catch (error) {
-        console.error(`Could not get file handle for: ${filepath}`, error);
-        return undefined;
-    }
-}
-
-export async function findFileHandle(filepath: string): Promise<FileSystemFileHandle | undefined> {
-    const parts = filepath.split('/');
-    const filename = parts.pop();
-
-    if (!filename) return undefined;
-
-    try {
-        let currentDir = await findFileHandleParent(filepath);
-        if (currentDir) {
-            return await currentDir.getFileHandle(filename, { create: false });
-        }
-        return undefined;
-    } catch (error) {
-        console.error(`Could not get file handle for: ${filepath}`, error);
-        return undefined;
-    }
 }
 
 export async function fileExists(filepath: string): Promise<boolean> {

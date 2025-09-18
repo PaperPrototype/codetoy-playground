@@ -7,15 +7,18 @@ self.onmessage = async (event) => {
     if (type === "upload") await upload(payload);               // {file, filepath} upload a single file
     else if (type === "savetext") await saveText(payload);               // {file, filepath} upload a single file
     else if (type === "moveFolder") await moveFolder(payload);  // {sourcePath, destinationPath} move a folder
+    else if (type === "moveFile") await moveFile(payload);  // {sourcePath, destinationPath} move a file
     else if (type === "deleteFolder") await deleteFolder(payload);            // {path} clear the entire directory recursively
     else if (type === "remove") await remove(payload);          // {path} delete a single file
     else console.error(`Unknown message type: ${type}`);
 }
 
+import { findFileHandle, findFileHandleParent } from './shared.js';
+
 async function saveText(payload: { text: string, filepath: string }) {
     const { text, filepath } = payload;
 
-    console.log('WORKER: Uploading file to', filepath);
+    // console.log('WORKER: Uploading file to', filepath);
 
     const opfsRoot = await navigator.storage.getDirectory();
 
@@ -26,21 +29,61 @@ async function saveText(payload: { text: string, filepath: string }) {
 
     // Create any necessary subdirectories
     for (const part of parts) {
-        console.log('WORKER: subdirectories part:', part);
+        // console.log('WORKER: subdirectories part:', part);
         currentDir = await currentDir.getDirectoryHandle(part, { create: true });
     }
 
-    console.log('WORKER: getFileHandle filename:', filename);
+    // console.log('WORKER: getFileHandle filename:', filename);
 
     const fileHandle = await currentDir.getFileHandle(filename, { create: true });
 
     await writeText(fileHandle, text);
 }
+async function moveFile(payload: {sourcePath:string, destinationPath:string}): Promise<void> {
+    const {sourcePath, destinationPath} = payload;
+
+    // Find the source file handle
+    const sourceFileHandle = await findFileHandle(sourcePath);
+    if (!sourceFileHandle) {
+        throw new Error(`Source file not found: ${sourcePath}`);
+    }
+
+    // Read the file contents
+    const file = await sourceFileHandle.getFile();
+
+    // Find/create the destination parent directory
+    const destParent = await findFileHandleParent(destinationPath);
+    if (!destParent) {
+        throw new Error(`Destination parent directory not found: ${destinationPath}`);
+    }
+
+    // Get the destination filename
+    const destParts = destinationPath.split('/');
+    const destFilename = destParts.pop();
+    if (!destFilename) {
+        throw new Error(`Invalid destination path: ${destinationPath}`);
+    }
+
+    // console.log('uploading...', destinationPath);
+
+    // Create the destination file and write contents
+    await upload({file, filepath: destinationPath});
+
+    // Remove the source file
+    const sourceParent = await findFileHandleParent(sourcePath);
+    if (sourceParent) {
+        const sourceParts = sourcePath.split('/');
+        const sourceFilename = sourceParts.pop();
+        if (sourceFilename) {
+            await sourceParent.removeEntry(sourceFilename);
+        }
+    }
+}
 
 async function upload(payload: { file: File, filepath: string }) {
     const { file, filepath } = payload;
 
-    console.log('WORKER: Uploading file to', filepath);
+    // console.log('WORKER: Uploading file to', filepath);
 
     const opfsRoot = await navigator.storage.getDirectory();
 
@@ -51,11 +94,11 @@ async function upload(payload: { file: File, filepath: string }) {
 
     // Create any necessary subdirectories
     for (const part of parts) {
-        console.log('WORKER: subdirectories part:', part);
+        // console.log('WORKER: subdirectories part:', part);
         currentDir = await currentDir.getDirectoryHandle(part, { create: true });
     }
 
-    console.log('WORKER: getFileHandle filename:', filename);
+    // console.log('WORKER: getFileHandle filename:', filename);
 
     const fileHandle = await currentDir.getFileHandle(filename, { create: true });
 

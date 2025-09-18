@@ -75,6 +75,7 @@
 
         if (focusedEntry && focusedEntry.kind === "file") {
             try {
+                console.log("move(from:"+sourcePath+", to:"+destinationPath+"destinationPath)")
                 await move(sourcePath, destinationPath);
                 alert(`File moved from ${sourcePath} to ${destinationPath}`);
             } catch (error) {
@@ -199,6 +200,16 @@
                     // event.preventDefault()
                     // console.log("enter pressed");
                     entry.isEditing = ! entry.isEditing;
+
+                    const originalName = entry.handle.name
+                    const newName = entry.name;
+                    const path = entry.relativePath.slice(0, entry.relativePath.length - originalName.length)
+
+                    if (entry.kind === "file") {
+                        moveFile(entry.relativePath, path + newName)
+                    } else {
+                        moveFolder(entry.relativePath, path + newName)
+                    }
                 }
             }}
             onclick={(event: PointerEvent) => {
@@ -219,6 +230,7 @@
             onoutclick={() => {
                 /*onsole.log("clicked outside", entry.name); CONFIRMED it works*/
                 entry.isEditing = false;
+                // entry.name = entry.handle.name;
 
                 // keep focused entry so you can create new files/folders inside it
                 // focusedEntry = undefined;
@@ -245,7 +257,10 @@
                     class="{entry.isEditing ? 'block' : 'hidden'} bg-transparent w-full focus:outline-none {entry.isEditing ? 'border-b border-blue-500 rounded-r' : ''}"
                     type="text"
                     bind:value={entry.name}
-                    onblur={() => (entry.isEditing = false)}
+                    onblur={() => {
+                        entry.isEditing = false; 
+                        // entry.name = entry.handle.name;
+                    }}
                 />
 
                 <!-- 
@@ -309,8 +324,11 @@
             <button class="btn btn-sm w-full" onclick={(event) => {
                 contextmenu.entry!.isEditing = true;
                 console.log("input element", contextmenu.entry?.inputElement);
-                contextmenu.entry.inputElement.focus();
-                contextmenu.entry.inputElement.setSelectionRange(contextmenu.entry.name.length, contextmenu.entry.name.length);
+
+                // Focus the input and select all the text
+                // ....for some reason it's not working
+                // contextmenu.entry.inputElement.focus();
+                // contextmenu.entry.inputElement.setSelectionRange(contextmenu.entry.name.length, contextmenu.entry.name.length);
                 contextmenu.entry = undefined;
             }}>Rename</button>
             {#if contextmenu.entry!.kind === "directory"}
