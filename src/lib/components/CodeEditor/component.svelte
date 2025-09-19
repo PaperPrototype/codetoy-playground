@@ -28,7 +28,6 @@
     let {
         saved,
         edited,
-        // value = $bindable(),
         class: className = "",
         mounted = undefined as
             | ((
@@ -46,21 +45,6 @@
         }
 
         if (!editor) {
-            monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
-            monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
-
-            // monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-            //     noSemanticValidation: true,
-            //     noSyntaxValidation: true,
-            //     noSuggestionDiagnostics: true
-            // });
-
-            // monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-            //     noSemanticValidation: true,
-            //     noSyntaxValidation: true,
-            //     noSuggestionDiagnostics: true
-            // });
-
             editor = monaco.editor.create(editorContainer, {
                 automaticLayout: true,
                 theme: "vs-dark",
@@ -74,11 +58,43 @@
                 formatOnType: true,
             });
 
+            monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+                noSemanticValidation: false,
+                noSyntaxValidation: false,
+                noSuggestionDiagnostics: false
+            });
+
+            monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+                noSemanticValidation: false,
+                noSyntaxValidation: false,
+                noSuggestionDiagnostics: false
+            });
+
+            monaco.languages.registerDefinitionProvider("typescript", {
+                provideDefinition(model, position) {
+                    return [
+                        {
+                            uri: model.uri,
+                            range: new monaco!.Range(
+                                position.lineNumber,
+                                position.column,
+                                position.lineNumber,
+                                position.column,
+                            ),
+                        },
+                    ];
+                },
+            });
+
             const { KeyCode, KeyMod } = await import("monaco-editor");
+
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyR, () => {
+                editor!.trigger("keyboard", "editor.action.rename", null);
+            });
 
             editor.addCommand(KeyMod.CtrlCmd | KeyCode.KeyS, (e) => {
                 if (active) saveChanges(active);
-            })
+            });
 
             // if (value) {
             //     editor.setValue(value);
@@ -102,6 +118,20 @@
         if (mounted) {
             mounted(monaco, editor);
         }
+
+        const { listEntriesDetailed } = await import("$lib/components/FileViewer/files.js");
+        const rootDir = await navigator.storage.getDirectory();
+        const rootEntry = {
+            kind: "directory",
+            handle: rootDir,
+            name: "",
+            relativePath: "",
+            isEditing: false,
+            isDirectoryOpen: true,
+            entries: await listEntriesDetailed(rootDir),
+        };
+
+        await loadAllModels(rootEntry);
     });
 
     onDestroy(() => {
@@ -109,32 +139,17 @@
         editor?.dispose();
     });
 
-    async function saveChanges(codetoyModel: CodetoyModel) {
-        saved(codetoyModel.model, codetoyModel.entry);
-        const {saveTextFile: save} = await import("$lib/components/FileViewer/files.js");
-        save(codetoyModel.model.getValue(), codetoyModel.entry.relativePath);
+    export function isMonacoLoaded(): boolean {
+        if (!monaco || !editor) return false;
+        return true;
     }
 
-    async function loadModel(entry: Entry) {
-        if (!editor || !monaco) return;
-        
-        // models are garbage collected once there is no longer a 
-        // reference to them so no need to worry about disposing of a model
-        const model = monaco.editor.createModel(
-            await (await (entry.handle as FileSystemFileHandle).getFile()).text(),
-            undefined,
-            new monaco.Uri().with({ path: "/files" + entry.relativePath }),
-        );
+    export async function loadAllModels(rootEntry: Entry) {
+        if (!monaco || !editor) {
+            console.error("loadAllModels: editor or monaco are undefined");
+            return;
+        }
 
-        models[entry.relativePath] = {
-            model: model,
-            entry: entry,
-        };
-    }
-
-    export async function reload(rootEntry: Entry) {
-        if (!monaco || !editor) return;
-        
         // dispose of all ITextModels
         for (const [_, value] of Object.entries(models)) value.model.dispose();
         models = {};
@@ -144,9 +159,12 @@
         recursiveLoad(rootEntry);
         function recursiveLoad(entry: Entry) {
             if (entry.kind === "file") loads.push(loadModel(entry));
-            if (entry.entries) for (const [_, value] of Object.entries(entry.entries)) recursiveLoad(value);
+            if (entry.entries)
+                for (const [_, value] of Object.entries(entry.entries))
+                    recursiveLoad(value);
         }
         await Promise.all(loads);
+        console.log("CODE EDITOR: loadAllModels, all models loaded")
     }
 
     export async function select(entry: Entry) {
@@ -156,6 +174,38 @@
         const model = models[entry.relativePath].model;
         editor!.setModel(model);
         active = { model, entry };
+    }
+
+    async function saveChanges(codetoyModel: CodetoyModel) {
+        saved(codetoyModel.model, codetoyModel.entry);
+        const { saveTextFile: save } = await import(
+            "$lib/components/FileViewer/files.js"
+        );
+        save(codetoyModel.model.getValue(), codetoyModel.entry.relativePath);
+    }
+
+    async function loadModel(entry: Entry) {
+        if (!editor || !monaco) {
+            console.error("loadModels: editor or monaco are undefined");
+            return;
+        }
+
+        // models are garbage collected once there is no longer a
+        // reference to them so no need to worry about disposing of a model
+        const uri = new monaco.Uri().with({ path: "files" + entry.relativePath });
+        window.console.log("uri", uri)
+        const model = monaco.editor.createModel(
+            await (
+                await (entry.handle as FileSystemFileHandle).getFile()
+            ).text(),
+            "typescript",
+            uri,
+        );
+
+        models[entry.relativePath] = {
+            model: model,
+            entry: entry,
+        };
     }
 
     // $effect(() => {
@@ -175,7 +225,6 @@
     //         editor?.setValue(" ");
     //     }
     // });
-
 </script>
 
 <div class={className + " relative"} bind:this={editorContainer}>

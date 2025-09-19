@@ -15,6 +15,12 @@ import {transform} from "sucrase"
 // This gives `self` the correct types
 const serviceWorker = self as unknown as ServiceWorkerGlobalScope;
 
+serviceWorker.addEventListener('install', function (event) {
+    // Skip waiting and move directly to activating
+    serviceWorker.skipWaiting();
+    // Further installation steps, like caching core assets, would go here
+});
+
 const ROOTPATH = "/files"
 
 serviceWorker.addEventListener("fetch", async (event) => {

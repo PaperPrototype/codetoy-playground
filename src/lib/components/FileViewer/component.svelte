@@ -8,9 +8,9 @@
 
     interface Props {
         select: (entry: Entry) => void;
-        reload: (rootEntry: Entry) => void;
+        entriesReloaded: (rootEntry: Entry) => void;
     }
-    let { select, reload }: Props = $props()
+    let { select, entriesReloaded }: Props = $props()
 
     const MAX_RECURSION = 100;
 
@@ -25,13 +25,11 @@
     let contextmenu: ContextMenu = $state({ open: false, entry: undefined, x: 0, y: 0 });
 
     onMount(async () => {
-        await reloadEntries();
+        await loadAllEntries();
     });
     
-    async function reloadEntries() {
-        const { listEntriesDetailed } = await import(
-            "$lib/components/FileViewer/files.js"
-        );
+    async function loadAllEntries() {
+        const { listEntriesDetailed } = await import("$lib/components/FileViewer/files.js");
         const rootDir = await navigator.storage.getDirectory();
         rootEntry = {
             kind: "directory",
@@ -42,7 +40,7 @@
             isDirectoryOpen: true,
             entries: await listEntriesDetailed(rootDir),
         };
-        reload(rootEntry);
+        entriesReloaded(rootEntry);
     }
 
     async function createFolder(entry: Entry) {
@@ -371,7 +369,7 @@
             <span>+</span>
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
         </button>
-        <button class="btn btn-sm" onclick={reloadEntries}>
+        <button class="btn btn-sm" onclick={loadAllEntries}>
             reload
         </button>
     </div>

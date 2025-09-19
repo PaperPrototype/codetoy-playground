@@ -89,8 +89,8 @@
             codeEditor?.select(entry);
             activeEntry = entry;
         }} 
-        reload={(rootEntry) => {
-            if (codeEditor) codeEditor.reload(rootEntry);
+        entriesReloaded={(rootEntry) => {
+            if (codeEditor && codeEditor.isMonacoLoaded()) codeEditor.loadAllModels(rootEntry);
         }}/>
     <CodeEditor
         bind:this={codeEditor} class="min-h-96 w-full" 

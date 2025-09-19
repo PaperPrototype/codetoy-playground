@@ -31,4 +31,21 @@ self.MonacoEnvironment = {
 	}
 };
 
+monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
+monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
+
+monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+    ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
+    allowNonTsExtensions: true,
+    module: monaco.languages.typescript.ModuleKind.ESNext,
+    target: monaco.languages.typescript.ScriptTarget.ES2020,
+});
+
+monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+    ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
+    allowNonTsExtensions: true,
+    module: monaco.languages.typescript.ModuleKind.ESNext,
+    target: monaco.languages.typescript.ScriptTarget.ES2020,
+});
+
 export default monaco;
