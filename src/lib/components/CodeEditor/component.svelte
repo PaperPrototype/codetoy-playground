@@ -58,34 +58,6 @@
                 formatOnType: true,
             });
 
-            monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-                noSemanticValidation: false,
-                noSyntaxValidation: false,
-                noSuggestionDiagnostics: false
-            });
-
-            monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-                noSemanticValidation: false,
-                noSyntaxValidation: false,
-                noSuggestionDiagnostics: false
-            });
-
-            monaco.languages.registerDefinitionProvider("typescript", {
-                provideDefinition(model, position) {
-                    return [
-                        {
-                            uri: model.uri,
-                            range: new monaco!.Range(
-                                position.lineNumber,
-                                position.column,
-                                position.lineNumber,
-                                position.column,
-                            ),
-                        },
-                    ];
-                },
-            });
-
             const { KeyCode, KeyMod } = await import("monaco-editor");
 
             editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyR, () => {
@@ -190,17 +162,38 @@
             return;
         }
 
+
+        /**
+            Cannot find module '/files/lib'. 
+            Did you mean to set the 'moduleResolution' option to 'nodenext', 
+            or to add aliases to the 'paths' option? (2792)
+        */
+    
+
         // models are garbage collected once there is no longer a
         // reference to them so no need to worry about disposing of a model
-        const uri = new monaco.Uri().with({ path: "files" + entry.relativePath });
+        const uri = new monaco.Uri().with({ path: "/files" + entry.relativePath });
         window.console.log("uri", uri)
+        const file = await (entry.handle as FileSystemFileHandle).getFile();
+        const content = await file.text();
         const model = monaco.editor.createModel(
-            await (
-                await (entry.handle as FileSystemFileHandle).getFile()
-            ).text(),
-            "typescript",
+            content,
+            undefined,
             uri,
         );
+
+        if (entry.name.includes(".ts")) {
+            // https://medium.com/@inquisitivebynature/web-based-ide-with-react-microsoft-monaco-editor-5ad5eaebaf92
+            // const fakePath = `file:///node_modules/@types/files${entry.relativePath}`;
+
+            // const typesPath = "/files" + entry.relativePath.slice(0, entry.relativePath.length - ".ts".length) + ".d.ts"
+            // console.log("CODE EDITOR: typesPath", typesPath)
+            // const uri = new monaco.Uri().with({ path: "files" + typesPath });
+            monaco.languages.typescript.typescriptDefaults.addExtraLib(
+                content,
+                "/files" + entry.relativePath,
+            )
+        }
 
         models[entry.relativePath] = {
             model: model,

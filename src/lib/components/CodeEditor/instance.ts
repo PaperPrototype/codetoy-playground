@@ -31,21 +31,61 @@ self.MonacoEnvironment = {
 	}
 };
 
-monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
-monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
+// monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
+// monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
+
+monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+    noSemanticValidation: false,
+    noSyntaxValidation: false,
+    // noSuggestionDiagnostics: false
+});
+
+monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+    noSemanticValidation: false,
+    noSyntaxValidation: false,
+    // noSuggestionDiagnostics: false
+});
 
 monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-    ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
+    target: monaco.languages.typescript.ScriptTarget.ES2016,
     allowNonTsExtensions: true,
-    module: monaco.languages.typescript.ModuleKind.ESNext,
-    target: monaco.languages.typescript.ScriptTarget.ES2020,
+    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+    module: monaco.languages.typescript.ModuleKind.CommonJS,
+    noEmit: true,
 });
 
-monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
-    ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
-    allowNonTsExtensions: true,
-    module: monaco.languages.typescript.ModuleKind.ESNext,
-    target: monaco.languages.typescript.ScriptTarget.ES2020,
-});
+// monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+//     // ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
+//     allowNonTsExtensions: true,
+//     module: monaco.languages.typescript.ModuleKind.ESNext,
+//     target: monaco.languages.typescript.ScriptTarget.ES2020,
+//     // moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+//     // target: monaco.languages.typescript.ScriptTarget.Latest,
+// });
+
+// monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+//     // ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
+//     allowNonTsExtensions: true,
+//     module: monaco.languages.typescript.ModuleKind.ESNext,
+//     target: monaco.languages.typescript.ScriptTarget.ES2020,
+//     // moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+//     // target: monaco.languages.typescript.ScriptTarget.Latest,
+// });
+
+// monaco.languages.registerDefinitionProvider("typescript", {
+//     provideDefinition(model, position) {
+//         return [
+//             {
+//                 uri: model.uri,
+//                 range: new monaco!.Range(
+//                     position.lineNumber,
+//                     position.column,
+//                     position.lineNumber,
+//                     position.column,
+//                 ),
+//             },
+//         ];
+//     },
+// });
 
 export default monaco;

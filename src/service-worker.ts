@@ -29,7 +29,7 @@ serviceWorker.addEventListener("fetch", async (event) => {
     async function respond(event: FetchEvent): Promise<Response> {
         const urlObj = new URL(event.request.url);
 
-        if (!urlObj.pathname.startsWith("/files")) {
+        if (!urlObj.pathname.startsWith(ROOTPATH)) {
             // default behaviour: pass through
             return fetch(event.request);
         }
@@ -38,6 +38,19 @@ serviceWorker.addEventListener("fetch", async (event) => {
 
         // get the requested file
         const filepath = urlObj.pathname.slice(ROOTPATH.length);
+
+        if (filepath.includes(".ts")) {
+            const fileHandleTs = (await findFileHandle(filepath)) as FileSystemFileHandle;
+            if (fileHandleTs) {
+                const file = await fileHandleTs.getFile()
+                const jsOutput = transform(await file.text(), {filePath: filepath, transforms: ["typescript"]}).code
+                return new Response(new Blob([jsOutput], {
+                    type: "text/javascript"
+                }));
+            }
+        }
+
+        // regular files
         const fileHandle = (await findFileHandle(filepath)) as FileSystemFileHandle;
         if (fileHandle) {
             const file = await fileHandle.getFile()

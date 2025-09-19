@@ -52,7 +52,7 @@
         // const srcCode = await resp.text();
         // window.console.log("PLAYGROUND: srcCode", srcCode)
         // const blobUrl = URL.createObjectURL(new Blob([srcCode], {type: "text/javascript"}));
-        // window.console.log("PLAYGROUND BLOB URL:", url)
+        // window.console.log("PLAYGROUND BLOB URL:", blobUrl)
 
         // create a "worker" to run the code in a separate thread
         // activeEntry is a file system entry in OPFS
@@ -82,7 +82,7 @@
 
 <button class="btn mx-2 mt-2" onclick={runCode}>Run</button>
 
-<div class="grid grid-cols-3">
+<div class="grid grid-cols-2">
     <FileViewer
         select={async (entry) => {
             if (entry.kind === "directory") return;
@@ -100,6 +100,8 @@
         saved={(model, entry) => {
             
         }}/>
+</div>
+<div>
     <div bind:this={canvasContainer}></div>
 </div>
 
