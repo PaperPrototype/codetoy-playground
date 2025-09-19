@@ -2,9 +2,12 @@ Open source playground for making browser games. Includes a real file system tha
 
 [Join the discord!](https://discord.gg/RjGwXa3jmp)
 
+> [!NOTE]
+> The playground is still in progress. Many features are in progress or not started. Check the issues for the most up to date information.
+
 https://github.com/user-attachments/assets/ef293227-3400-4300-9a67-61547e574f31
 
-This playground facitilates a `postMessage` and `addEventListener` protocol allowing worker scripts to send and receive messages.
+This playground will facilitate a `postMessage` and `addEventListener` protocol allowing worker scripts to send and receive messages.
 
 ```js
 // Example code to draw a red rectangle
