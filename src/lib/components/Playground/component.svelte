@@ -89,7 +89,10 @@
             codeEditor?.select(entry);
             activeEntry = entry;
         }} 
-        entriesReloaded={(rootEntry) => {
+        onError={(error, operation) => {
+            window.console.error("operation:", operation, "errorL:", error)
+        }}
+        onEntriesReloaded={(rootEntry) => {
             if (codeEditor && codeEditor.isMonacoLoaded()) codeEditor.loadAllModels(rootEntry);
         }}/>
     <CodeEditor

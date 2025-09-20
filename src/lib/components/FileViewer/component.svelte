@@ -1,249 +1,405 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import type { Entry } from "$lib/components/FileViewer/files.js";
-    import outside from "$lib/utils/outsideclick";
+
+    import outside from "$lib/utils/outsideclick/index.js";
 
     import FolderIcon from "./icons/FolderIcon.svelte";
     import FileIcon from "./icons/FileIcon.svelte";
 
+    // Enhanced Props Interface with cohesive callbacks
     interface Props {
         select: (entry: Entry) => void;
-        entriesReloaded: (rootEntry: Entry) => void;
+        onFileCreated?: (parentPath: string, fileName: string) => void;
+        onFolderCreated?: (parentPath: string, folderName: string) => void;
+        onFileRenamed?: (oldPath: string, newPath: string) => void;
+        onFolderRenamed?: (oldPath: string, newPath: string) => void;
+        onFileMoved?: (sourcePath: string, destinationPath: string) => void;
+        onFolderMoved?: (sourcePath: string, destinationPath: string) => void;
+        onFileDeleted?: (path: string) => void;
+        onFolderDeleted?: (path: string) => void;
+        onEntriesReloaded?: (rootEntry: Entry) => void;
+        onError?: (error: Error, operation: string) => void;
     }
-    let { select, entriesReloaded }: Props = $props()
+
+    let { 
+        select, 
+        onFileCreated,
+        onFolderCreated,
+        onFileRenamed,
+        onFolderRenamed,
+        onFileMoved,
+        onFolderMoved,
+        onFileDeleted,
+        onFolderDeleted,
+        onEntriesReloaded,
+        onError
+    }: Props = $props();
+
+    // Logical Data Structures
+    interface AppState {
+        rootEntry: Entry | undefined;
+        focusedEntry: Entry | undefined;
+        contextMenu: {
+            entry?: Entry;
+            x: number;
+            y: number;
+            isOpen: boolean;
+        };
+        dragState: {
+            isDragging: boolean;
+            draggedEntry?: Entry;
+        };
+    }
 
     const MAX_RECURSION = 100;
 
-    interface ContextMenu {
-        entry?: Entry;
-        x: number;
-        y: number;
-    }
+    // Centralized state management
+    let state: AppState = $state({
+        rootEntry: undefined,
+        focusedEntry: undefined,
+        contextMenu: {
+            entry: undefined,
+            x: 0,
+            y: 0,
+            isOpen: false
+        },
+        dragState: {
+            isDragging: false,
+            draggedEntry: undefined
+        }
+    });
 
-    let rootEntry: Entry | undefined = $state();
-    let focusedEntry: Entry | undefined =  $state();
-    let contextmenu: ContextMenu = $state({ open: false, entry: undefined, x: 0, y: 0 });
-
+    // Lifecycle
     onMount(async () => {
         await loadAllEntries();
     });
-    
+
+    // Core Operations
     async function loadAllEntries() {
-        const { listEntriesDetailed } = await import("$lib/components/FileViewer/files.js");
-        const rootDir = await navigator.storage.getDirectory();
-        rootEntry = {
-            kind: "directory",
-            handle: rootDir,
-            name: "",
-            relativePath: "",
-            isEditing: false,
-            isDirectoryOpen: true,
-            entries: await listEntriesDetailed(rootDir),
-        };
-        entriesReloaded(rootEntry);
+        try {
+            const { listEntriesDetailed } = await import("$lib/components/FileViewer/files.js");
+            const rootDir = await navigator.storage.getDirectory();
+            
+            state.rootEntry = {
+                kind: "directory",
+                handle: rootDir,
+                name: "",
+                relativePath: "",
+                isEditing: false,
+                isDirectoryOpen: true,
+                entries: await listEntriesDetailed(rootDir),
+            };
+            
+            onEntriesReloaded?.(state.rootEntry);
+        } catch (error) {
+            handleError(error as Error, "loading entries");
+        }
     }
 
-    async function createFolder(entry: Entry) {
-        console.log("create folder", entry);
-        if (entry.kind !== "directory") {
-            alert("Can only create folders inside folders.");
+    async function createNewFolder(parentEntry: Entry) {
+        if (parentEntry.kind !== "directory") {
+            handleError(new Error("Can only create folders inside directories"), "creating folder");
             return;
         }
 
-        const handle = entry.handle as FileSystemDirectoryHandle;
-        await handle.getDirectoryHandle(prompt("Folder name") || "New Folder", { create: true });
+        try {
+            const folderName = prompt("Folder name") || "New Folder";
+            const handle = parentEntry.handle as FileSystemDirectoryHandle;
+            await handle.getDirectoryHandle(folderName, { create: true });
+            
+            onFolderCreated?.(parentEntry.relativePath, folderName);
+            await loadAllEntries(); // Refresh to show new folder
+        } catch (error) {
+            handleError(error as Error, "creating folder");
+        }
     }
 
-    async function createFile(entry: Entry) {
-        console.log("create folder", entry);
-        if (entry.kind !== "directory") {
-            alert("Can only create files inside folders.");
+    async function createNewFile(parentEntry: Entry) {
+        if (parentEntry.kind !== "directory") {
+            handleError(new Error("Can only create files inside directories"), "creating file");
             return;
         }
 
-        const handle = entry.handle as FileSystemDirectoryHandle;
-        await handle.getFileHandle(prompt("File name") || "New File.txt", { create: true });
+        try {
+            const fileName = prompt("File name") || "New File.txt";
+            const handle = parentEntry.handle as FileSystemDirectoryHandle;
+            await handle.getFileHandle(fileName, { create: true });
+            
+            onFileCreated?.(parentEntry.relativePath, fileName);
+            await loadAllEntries(); // Refresh to show new file
+        } catch (error) {
+            handleError(error as Error, "creating file");
+        }
     }
 
-    async function moveFile(sourcePath: string, destinationPath: string) {
-        if (sourcePath === destinationPath) return;
-        if (sourcePath.trim() === "") return;
+    async function renameEntry(entry: Entry, newName: string) {
+        console.log("renameEntry: starting")
 
-        const {moveFile: move} = await import("$lib/components/FileViewer/files.js");
+        if (!newName || newName === entry.handle.name) {
+            console.log("renameEntry: starting")
+            return;
+        }
 
-        if (focusedEntry && focusedEntry.kind === "file") {
-            try {
-                console.log("move(from:"+sourcePath+", to:"+destinationPath+"destinationPath)")
-                await move(sourcePath, destinationPath);
-                alert(`File moved from ${sourcePath} to ${destinationPath}`);
-            } catch (error) {
-                console.error("Error moving file:", error);
-                alert("Failed to move file. See console for details.");
+        const originalName = entry.handle.name;
+        const basePath = entry.relativePath.slice(0, entry.relativePath.length - originalName.length);
+        const newPath = basePath + newName;
+
+        try {
+            console.log("renameEntry: attempting to rename")
+            if (entry.kind === "file") {
+                await moveFileOperation(entry.relativePath, newPath);
+                onFileRenamed?.(entry.relativePath, newPath);
+            } else {
+                await moveFolderOperation(entry.relativePath, newPath);
+                onFolderRenamed?.(entry.relativePath, newPath);
             }
-        } else {
-            alert("Please select a file to move.");
-        }
-    }
-
-    async function moveFolder(sourcePath: string, destinationPath: string) {
-        const {moveFolder: move} = await import("$lib/components/FileViewer/files.js");
-        move(sourcePath, destinationPath)
-    }
-
-    async function deleteFolder(path: string) {
-        if (!confirm(`Are you sure you want to delete the folder at ${path} and all its contents?`)) {
-            return;
-        }
-
-        const {deleteFolder: deleteFn} = await import("$lib/components/FileViewer/files.js");
-        try {
-            await deleteFn(path);
+            await loadAllEntries(); // Refresh to show changes
         } catch (error) {
-            console.error("Error deleting folder:", error);
-            alert("Failed to delete folder. See console for details.");
+            handleError(error as Error, `renaming ${entry.kind}`);
         }
     }
 
-    async function deleteFile(path: string) {
-        if (!confirm(`Are you sure you want to delete the file at ${path}?`)) {
-            return;
-        }
+    async function moveFileOperation(sourcePath: string, destinationPath: string) {
+        if (sourcePath === destinationPath || !sourcePath.trim()) return;
 
-        const {deleteFile: deleteFn} = await import("$lib/components/FileViewer/files.js");
         try {
-            await deleteFn(path);
+            const { moveFile } = await import("$lib/components/FileViewer/files.js");
+            await moveFile(sourcePath, destinationPath);
+            onFileMoved?.(sourcePath, destinationPath);
+            await loadAllEntries(); // Refresh to show changes
         } catch (error) {
-            console.error("Error deleting folder:", error);
-            alert("Failed to delete folder. See console for details.");
+            handleError(error as Error, "moving file");
         }
     }
 
-    function filesDropHandler(event: DragEvent) {
+    async function moveFolderOperation(sourcePath: string, destinationPath: string) {
+        if (sourcePath === destinationPath || !sourcePath.trim()) return;
+
+        try {
+            const { moveFolder } = await import("$lib/components/FileViewer/files.js");
+            await moveFolder(sourcePath, destinationPath);
+            onFolderMoved?.(sourcePath, destinationPath);
+            await loadAllEntries(); // Refresh to show changes
+        } catch (error) {
+            handleError(error as Error, "moving folder");
+        }
+    }
+
+    async function deleteEntryOperation(entry: Entry) {
+        const confirmMessage = entry.kind === "directory" 
+            ? `Are you sure you want to delete the folder "${entry.name}" and all its contents?`
+            : `Are you sure you want to delete the file "${entry.name}"?`;
+        
+        if (!confirm(confirmMessage)) return;
+
+        try {
+            if (entry.kind === "directory") {
+                const { deleteFolder } = await import("$lib/components/FileViewer/files.js");
+                await deleteFolder(entry.relativePath);
+                onFolderDeleted?.(entry.relativePath);
+            } else {
+                const { deleteFile } = await import("$lib/components/FileViewer/files.js");
+                await deleteFile(entry.relativePath);
+                onFileDeleted?.(entry.relativePath);
+            }
+            await loadAllEntries(); // Refresh to show changes
+        } catch (error) {
+            handleError(error as Error, `deleting ${entry.kind}`);
+        }
+    }
+
+    // Event Handlers
+    function clickEvent(entry: Entry, event: MouseEvent) {
+        select(entry);
+        if (event.target) {
+            (event.target as HTMLElement).focus();
+        }
+        state.focusedEntry = entry;
+    }
+
+    function contextMenuEvent(entry: Entry, event: MouseEvent) {
         event.preventDefault();
-        // Use DataTransferItemList interface to access the file(s)
-        [...event.dataTransfer?.items || []].forEach((item, i) => {
-            // If dropped items aren't files, reject them
-            if (item.kind === "file") {
-                const file = item.getAsFile();
-                console.log(`dropped file[${i}].name = ${file?.name}`);
+        state.focusedEntry = entry;
+        state.contextMenu = {
+            entry,
+            x: event.clientX,
+            y: event.clientY,
+            isOpen: true
+        };
+    }
+
+    function keydownEvent(entry: Entry, event: KeyboardEvent) {
+        console.log("renaming attempt")
+        if (event.key === "Enter" && entry.isEditing) {
+            entry.isEditing = false;
+            renameEntry(entry, entry.name);
+            console.log("renameEntry successfully called")
+        }
+    }
+
+    function dragStartEvent(entry: Entry, event: DragEvent) {
+        if (!event.dataTransfer) return;
+        
+        state.focusedEntry = entry;
+        state.dragState.isDragging = true;
+        state.dragState.draggedEntry = entry;
+        
+        event.dataTransfer.setData("opfs/kind", entry.kind);
+        event.dataTransfer.setData("opfs/path", entry.relativePath);
+        event.dataTransfer.setData("opfs/name", entry.name);
+        event.dataTransfer.effectAllowed = "move";
+    }
+
+    function dragEndEvent() {
+        state.dragState.isDragging = false;
+        state.dragState.draggedEntry = undefined;
+    }
+
+    function dragOverEvent(event: DragEvent) {
+        event.preventDefault();
+    }
+
+    function dragEnterEvent(entry: Entry, event: DragEvent) {
+        event.preventDefault();
+        if (event.target === entry.element && entry.kind === "directory") {
+            entry.element?.classList.add("bg-red-200");
+            entry.element?.classList.remove("bg-base-200");
+        }
+    }
+
+    function dragLeaveEvent(entry: Entry, event: DragEvent) {
+        if (event.target === entry.element) {
+            entry.element?.classList.remove("bg-red-200");
+            entry.element?.classList.add("bg-base-200");
+        }
+    }
+
+    function dropEvent(entry: Entry, event: DragEvent) {
+        event.preventDefault();
+        
+        if (!event.dataTransfer) return;
+        
+        const kind = event.dataTransfer.getData("opfs/kind");
+        const sourcePath = event.dataTransfer.getData("opfs/path");
+        const name = event.dataTransfer.getData("opfs/name");
+
+        // Can only drop onto directories
+        if (sourcePath && entry.kind === "directory") {
+            const destinationPath = entry.relativePath + "/" + name;
+            
+            if (kind === "directory") {
+                moveFolderOperation(sourcePath, destinationPath);
+            } else {
+                moveFileOperation(sourcePath, destinationPath);
             }
-        });
+        }
+
+        // Handle external file drops
+        handleExternalFileDrop(entry, event);
+        
+        // Clean up visual feedback
+        entry.element?.classList.remove("bg-red-200");
+        entry.element?.classList.add("bg-base-200");
+    }
+
+    async function handleExternalFileDrop(entry: Entry, event: DragEvent) {
+        console.log("handleExternalFileDrop. files:", event.dataTransfer?.files)
+
+        if (!event.dataTransfer?.files || entry.kind !== "directory") return;
+        const files = event.dataTransfer.files;
+
+        try {
+            const { uploadFile } = await import("$lib/components/FileViewer/files.js");        
+            
+            for (let i = 0; i < files.length; i++) {
+                console.log("Processing file:", files[i].name);
+                const destinationPath = `${entry.relativePath}/${files[i].name}`;
+                await uploadFile(files[i], destinationPath);
+                onFileCreated?.(entry.relativePath, files[i].name);
+            }
+            
+            await loadAllEntries(); // Refresh to show new files
+        } catch (error) {
+            handleError(error as Error, "uploading external files");
+        }
+    }
+
+    function outsideClickEvent(entry: Entry) {
+        if (entry.isEditing) {
+            entry.isEditing = false;
+            // Reset name if editing was cancelled
+            entry.name = entry.handle.name;
+        }
+    }
+
+    function closeContextMenu() {
+        state.contextMenu.isOpen = false;
+        state.contextMenu.entry = undefined;
+    }
+
+    function startRename() {
+        if (state.contextMenu.entry) {
+            state.contextMenu.entry.isEditing = true;
+            closeContextMenu();
+            
+            // Focus input after next tick
+            setTimeout(() => {
+                state.contextMenu.entry?.inputElement?.focus();
+            }, 0);
+        }
+    }
+
+    // Utility Functions
+    function handleError(error: Error, operation: string) {
+        console.error(`Error ${operation}:`, error);
+        onError?.(error, operation);
+        alert(`Failed to ${operation}. See console for details.`);
+    }
+
+    function toggleDirectory(entry: Entry) {
+        entry.isDirectoryOpen = !entry.isDirectoryOpen;
+    }
+
+    function getTargetEntry(): Entry {
+        return state.focusedEntry || state.rootEntry!;
     }
 </script>
 
-<!-- 
-    Sub component using svelte snippets 
-    https://svelte.dev/docs/svelte/snippet
--->
+<!-- Main Template -->
 {#snippet leaf(entry: Entry, depth: number = 0)}
     {#if depth < MAX_RECURSION}
     <div style="padding-left: {depth > 0 ? 24 : 0}px;">
         <div
             bind:this={entry.element}
-            role="input"
-            ondragover={(e) => {event?.preventDefault()}}
-            ondragenter={(event) => {
-                event.preventDefault()
-                if (event.target === entry.element) {
-                    entry.element?.classList.add("bg-red-200");
-                    entry.element?.classList.remove("bg-base-200");
-                }
-            }}
-            ondragleave={(event) => {
-                if (event.target === entry.element) {
-                    entry.element?.classList.remove("bg-red-200");
-                    entry.element?.classList.add("bg-base-200");
-                }
-            }}
-            draggable="{entry.isEditing ? 'false' : 'true'}"
-            ondragstart={(event) => {
-                focusedEntry = entry;
-                event.dataTransfer.setData("opfs/kind", entry.kind)
-                event.dataTransfer.setData("opfs/path", entry.relativePath);
-                event.dataTransfer.setData("opfs/path/name", entry.name);
-                event.dataTransfer.effectAllowed = "move";
-                event.dataTransfer.dropEffect = "move";
-                console.log("drag started", entry.relativePath);
-            }}
-            ondragend={() => {
-                console.log('ended drag')
-            }}
-            ondrop={(event) => {
-                console.log(entry.relativePath, "drop event", event);
-                const kind = event.dataTransfer.getData("opfs/kind", entry.kind)
-                const path = event.dataTransfer.getData("opfs/path");
-                const name = event.dataTransfer?.getData("opfs/path/name", entry.name);
-
-                // can only drop onto a folder
-                if (path && entry.kind === "directory") {
-
-                    // if dropping a folder
-                    if (kind === "directory") {
-                        const destinationPath = entry.relativePath + "/" + name;
-                        moveFolder(path, destinationPath);
-                    } 
-                    // if dropping a file
-                    else {
-                        const destinationPath = entry.relativePath + "/" + name;
-                        moveFile(path, destinationPath);
-                    }
-                }
-                filesDropHandler(event);
-                entry.element?.classList.remove("bg-red-200");
-                entry.element?.classList.add("bg-base-200");
-            }}
-            tabindex="-1"
-            onkeydown={(event: KeyboardEvent) => {
-                if (event.key === "Enter") {
-                    // event.preventDefault()
-                    // console.log("enter pressed");
-                    entry.isEditing = ! entry.isEditing;
-
-                    const originalName = entry.handle.name
-                    const newName = entry.name;
-                    const path = entry.relativePath.slice(0, entry.relativePath.length - originalName.length)
-
-                    if (entry.kind === "file") {
-                        moveFile(entry.relativePath, path + newName)
-                    } else {
-                        moveFolder(entry.relativePath, path + newName)
-                    }
-                }
-            }}
-            onclick={(event: PointerEvent) => {
-                // event.preventDefault();
-                select(entry)
-                event.target && (event.target as HTMLElement).focus();
-                focusedEntry = entry;
-            }}
-            oncontextmenu={(event) => {
-                event.preventDefault();
-                focusedEntry = entry;
-                contextmenu.entry = entry;
-                contextmenu.x = event.clientX;
-                contextmenu.y = event.clientY;
-            }}
-            dropped="true"
+            role="button"
+            tabindex="0"
+            draggable={!entry.isEditing}
+            ondragover={dragOverEvent}
+            ondragenter={(event: DragEvent) => dragEnterEvent(entry, event)}
+            ondragleave={(event: DragEvent) => dragLeaveEvent(entry, event)}
+            ondragstart={(event: DragEvent) => dragStartEvent(entry, event)}
+            ondragend={dragEndEvent}
+            ondrop={(event: DragEvent) => dropEvent(entry, event)}
+            onkeydown={(event: KeyboardEvent) => keydownEvent(entry, event)}
+            onclick={(event: MouseEvent) => clickEvent(entry, event)}
+            oncontextmenu={(event: MouseEvent) => contextMenuEvent(entry, event)}
             use:outside
-            onoutclick={() => {
-                /*onsole.log("clicked outside", entry.name); CONFIRMED it works*/
-                entry.isEditing = false;
-                // entry.name = entry.handle.name;
-
-                // keep focused entry so you can create new files/folders inside it
-                // focusedEntry = undefined;
-            }}
-            class="{focusedEntry === entry ? 'bg-base-300' : ''} focus:outline-none relative rounded bg-base-200 group w-full pl-2 inline-block"
+            onoutclick={() => outsideClickEvent(entry)}
+            class="{state.focusedEntry === entry ? 'bg-base-300' : ''} focus:outline-none relative rounded bg-base-200 group w-full pl-2 inline-block hover:bg-base-250 transition-colors"
+            aria-label={`${entry.kind}: ${entry.name || 'Root'}`}
         >
             <div class="{entry.isEditing ? '' : 'pointer-events-none'} relative flex items-center justify-start gap-2 focus:outline-none">
                 {#if entry.relativePath === ""}
-                    <!-- container icon -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
                 {:else if entry.kind === "file"}
-                    <FileIcon class="w-5" name={entry.name}></FileIcon>
+                    <FileIcon class="w-5" name={entry.name} />
                 {:else}
-                    <FolderIcon class="w-5" name={entry.name} bind:open={entry.isDirectoryOpen}></FolderIcon>
+                    <FolderIcon class="w-5" name={entry.name} bind:open={entry.isDirectoryOpen} />
                 {/if}
+                
                 {#if entry.relativePath === ""}
                     <span>Files</span>
                 {:else if !entry.isEditing}
@@ -255,21 +411,29 @@
                     class="{entry.isEditing ? 'block' : 'hidden'} bg-transparent w-full focus:outline-none {entry.isEditing ? 'border-b border-blue-500 rounded-r' : ''}"
                     type="text"
                     bind:value={entry.name}
-                    onblur={() => {
-                        entry.isEditing = false; 
-                    }}
+                    onblur={() => { entry.isEditing = false; }}
                 />
             </div>
-            <button onclick={() => {
-                entry.isDirectoryOpen = !entry.isDirectoryOpen;
-            }} class="inline-block absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-base-300 {entry.entries && Object.keys(entry.entries).length > 0 ? '' : 'invisible'}">
-                {#if entry.isDirectoryOpen}
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                {:else}
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-                {/if}
-            </button>
+            
+            {#if entry.entries && Object.keys(entry.entries).length > 0}
+                <button 
+                    onclick={() => toggleDirectory(entry)}
+                    class="inline-block absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-base-300"
+                    aria-label="{entry.isDirectoryOpen ? 'Collapse' : 'Expand'} directory"
+                >
+                    {#if entry.isDirectoryOpen}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    {:else}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    {/if}
+                </button>
+            {/if}
         </div>
+        
         {#if entry.entries && Object.keys(entry.entries).length > 0}
             <div class="{entry.isDirectoryOpen ? 'block' : 'hidden'}">
                 {#each Object.entries(entry.entries) as [subKey, subValue] (subKey)}
@@ -281,78 +445,73 @@
     {/if}
 {/snippet}
 
-<div 
-    class="p-2 space-y-1 relative"
-    role="input"
->
-    <!-- Context menu that opens when right clicking -->
-     {#if contextmenu.entry}
+<div class="p-2 space-y-1 relative" role="region" aria-label="File Explorer">
+    <!-- Context Menu -->
+    {#if state.contextMenu.isOpen && state.contextMenu.entry}
         <div
-            style=" left:{contextmenu.x}px; top:{contextmenu.y - 32}px"
+            style="left:{state.contextMenu.x}px; top:{state.contextMenu.y - 32}px"
             class="absolute z-10 bg-base-100 card rounded p-2 space-y-1 shadow-md w-48"
             use:outside
-            onoutclick={() => {
-                contextmenu.entry = undefined;
-            }}
-            >
-            <button class="btn btn-sm w-full" onclick={(event) => {
-                contextmenu.entry!.isEditing = true;
-                console.log("input element", contextmenu.entry?.inputElement);
-
-                // Focus the input and select all the text
-                // ....for some reason it's not working
-                // contextmenu.entry.inputElement.focus();
-                // contextmenu.entry.inputElement.setSelectionRange(contextmenu.entry.name.length, contextmenu.entry.name.length);
-                contextmenu.entry = undefined;
-            }}>Rename</button>
-            {#if contextmenu.entry!.kind === "directory"}
-                <button class="btn btn-sm w-full" onclick={(event) => {
-                    console.log('new folder clicked');
-                    createFolder(contextmenu.entry as Entry);
-                    contextmenu.entry = undefined;
-                }}>New Folder</button>
-                <button class="btn btn-sm w-full" onclick={(event) => {
-                    console.log('new file clicked');
-                    createFile(contextmenu.entry as Entry);
-                    contextmenu.entry = undefined;
-                }}>New File</button>
-                <button class="btn btn-sm w-full" onclick={(event) => {
-                    console.log('delete folder clicked');
-                    deleteFolder(contextmenu.entry!.relativePath);
-                    contextmenu.entry = undefined;
-                }}>Delete Folder</button>
+            onoutclick={closeContextMenu}
+            role="menu"
+        >
+            <button class="btn btn-sm w-full" onclick={startRename} role="menuitem">
+                Rename
+            </button>
+            {#if state.contextMenu.entry.kind === "directory"}
+                <button class="btn btn-sm w-full" onclick={() => {createNewFolder(state.contextMenu.entry!); closeContextMenu();}} role="menuitem">
+                    New Folder
+                </button>
+                <button class="btn btn-sm w-full" onclick={() => {createNewFile(state.contextMenu.entry!); closeContextMenu();}} role="menuitem">
+                    New File
+                </button>
+                <button class="btn btn-sm w-full" onclick={() => {deleteEntryOperation(state.contextMenu.entry!); closeContextMenu();}} role="menuitem">
+                    Delete Folder
+                </button>
             {:else}
-                <button class="btn btn-sm w-full" onclick={(event) => {
-                    console.log('delete folder clicked');
-                    deleteFile(contextmenu.entry!.relativePath);
-                    contextmenu.entry = undefined;
-                }}>Delete File</button>
+                <button class="btn btn-sm w-full" onclick={() => {deleteEntryOperation(state.contextMenu.entry!); closeContextMenu();}} role="menuitem">
+                    Delete File
+                </button>
             {/if}
         </div>
     {/if}
-    <div>
-        <button class="btn btn-sm" onclick={() => {
-            createFile(focusedEntry || rootEntry!);
-        }}>
-            <!-- file icon -->
+
+    <!-- Toolbar -->
+    <div class="flex gap-2" role="toolbar">
+        <button 
+            class="btn btn-sm" 
+            onclick={() => createNewFile(getTargetEntry())}
+            title="Create new file"
+        >
             <span>+</span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V7.414a2 2 0 00-.586-1.414l-4.414-4.414A2 2 0 0014.586 1H7a2 2 0 00-2 2v16a2 2 0 002 2z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V7.414a2 2 0 00-.586-1.414l-4.414-4.414A2 2 0 0014.586 1H7a2 2 0 00-2 2v16a2 2 0 002 2z" />
+            </svg>
         </button>
-        <button onclick={() => {
-            createFolder(focusedEntry || rootEntry!);
-        }} class="btn btn-sm">
-            <!-- folder icon -->
+        <button 
+            class="btn btn-sm" 
+            onclick={() => createNewFolder(getTargetEntry())}
+            title="Create new folder"
+        >
             <span>+</span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
         </button>
-        <button class="btn btn-sm" onclick={loadAllEntries}>
-            reload
+        <button class="btn btn-sm" onclick={loadAllEntries} title="Reload files">
+            Reload
         </button>
     </div>
-    {#if rootEntry}
-        {@render leaf(rootEntry, 0)}
+
+    <!-- File Tree -->
+    {#if state.rootEntry}
+        {@render leaf(state.rootEntry, 0)}
     {/if}
-    {#if rootEntry && Object.keys(rootEntry.entries || {}).length === 0}
-        <div>No files found. Use the + buttons to create files or folders.</div>
+
+    <!-- Empty State -->
+    {#if state.rootEntry && Object.keys(state.rootEntry.entries || {}).length === 0}
+        <div class="text-center text-gray-500 py-8">
+            No files found. Use the + buttons to create files or folders.
+        </div>
     {/if}
 </div>

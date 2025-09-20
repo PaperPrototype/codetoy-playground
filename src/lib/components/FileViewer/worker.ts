@@ -1,116 +1,161 @@
+import {
+    findFileHandle,
+    findFileHandleParent,
+    findDirectoryHandle,
+    writeText,
+    uploadFile,
+    recursiveCopy,
+    removeDirectoryFast
+} from './shared.js';
+
+interface WorkerMessage {
+    id?: string;
+    type: string;
+    payload?: any;
+}
+
+interface WorkerResponse {
+    id?: string;
+    success: boolean;
+    error?: string;
+}
+
 self.onmessage = async (event) => {
-    const { type, payload } = event.data as {
-        payload?: any;
-        type: string;
+    const { id, type, payload }: WorkerMessage = event.data;
+
+    if (!id) {
+        console.error("FILE WORKER: no id given");
+        return;
     }
 
-    if (type === "upload") await upload(payload);               // {file, filepath} upload a single file
-    else if (type === "savetext") await saveText(payload);               // {file, filepath} upload a single file
-    else if (type === "moveFolder") await moveFolder(payload);  // {sourcePath, destinationPath} move a folder
-    else if (type === "moveFile") await moveFile(payload);  // {sourcePath, destinationPath} move a file
-    else if (type === "deleteFolder") await deleteFolder(payload);            // {path} clear the entire directory recursively
-    else if (type === "remove") await remove(payload);          // {path} delete a single file
-    else console.error(`Unknown message type: ${type}`);
+    let result;
+
+    switch (type) {
+        case "savetext":
+            result = await saveTextFile(id, type, payload);
+            break;
+        case "upload":
+            result = await uploadFileOperation(id, type, payload);
+            break;
+        case "moveFolder":
+            result = await moveFolderOperation(id, type, payload);
+            break;
+        case "moveFile":
+            result = await moveFileOperation(id, type, payload);
+            break;
+        case "deleteFolder":
+            result = await deleteFolderOperation(id, type, payload);
+            break;
+        case "deleteFile":
+            result = await deleteFileOperation(id, type, payload);
+            break;
+        default:
+            throw new Error(`Unknown message type: ${type}`);
+    }
+
+    self.postMessage(result);
+};
+
+function successResponse(id: string): WorkerResponse {
+    // Send success response
+    const response: WorkerResponse = { id, success: true };
+    return response;
 }
 
-import { findFileHandle, findFileHandleParent } from './shared.js';
+function errorResponse(id: string, type: string, error: any,): WorkerResponse {
+    // console.error(`Worker error for operation ${type}:`, error);
 
-async function saveText(payload: { text: string, filepath: string }) {
-    const { text, filepath } = payload;
-
-    // console.log('WORKER: Uploading file to', filepath);
-
-    const opfsRoot = await navigator.storage.getDirectory();
-
-    // Split the filepath into directory parts and filename
-    const parts = filepath.split('/').slice(1); // all but the first part
-    const filename = parts.pop()!;
-    let currentDir = opfsRoot;
-
-    // Create any necessary subdirectories
-    for (const part of parts) {
-        // console.log('WORKER: subdirectories part:', part);
-        currentDir = await currentDir.getDirectoryHandle(part, { create: true });
-    }
-
-    // console.log('WORKER: getFileHandle filename:', filename);
-
-    const fileHandle = await currentDir.getFileHandle(filename, { create: true });
-
-    await writeText(fileHandle, text);
-}
-async function moveFile(payload: {sourcePath:string, destinationPath:string}): Promise<void> {
-    const {sourcePath, destinationPath} = payload;
-
-    // Find the source file handle
-    const sourceFileHandle = await findFileHandle(sourcePath);
-    if (!sourceFileHandle) {
-        throw new Error(`Source file not found: ${sourcePath}`);
-    }
-
-    // Read the file contents
-    const file = await sourceFileHandle.getFile();
-
-    // Find/create the destination parent directory
-    const destParent = await findFileHandleParent(destinationPath);
-    if (!destParent) {
-        throw new Error(`Destination parent directory not found: ${destinationPath}`);
-    }
-
-    // Get the destination filename
-    const destParts = destinationPath.split('/');
-    const destFilename = destParts.pop();
-    if (!destFilename) {
-        throw new Error(`Invalid destination path: ${destinationPath}`);
-    }
-
-    // console.log('uploading...', destinationPath);
-
-    // Create the destination file and write contents
-    await upload({file, filepath: destinationPath});
-
-    // Remove the source file
-    const sourceParent = await findFileHandleParent(sourcePath);
-    if (sourceParent) {
-        const sourceParts = sourcePath.split('/');
-        const sourceFilename = sourceParts.pop();
-        if (sourceFilename) {
-            await sourceParent.removeEntry(sourceFilename);
-        }
-    }
+    // Send error response
+    const response: WorkerResponse = {
+        id,
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+    };
+    return response;
 }
 
-async function upload(payload: { file: File, filepath: string }) {
-    const { file, filepath } = payload;
-
-    // console.log('WORKER: Uploading file to', filepath);
-
-    const opfsRoot = await navigator.storage.getDirectory();
-
-    // Split the filepath into directory parts and filename
-    const parts = filepath.split('/').slice(1); // all but the first part
-    const filename = parts.pop()!;
-    let currentDir = opfsRoot;
-
-    // Create any necessary subdirectories
-    for (const part of parts) {
-        // console.log('WORKER: subdirectories part:', part);
-        currentDir = await currentDir.getDirectoryHandle(part, { create: true });
-    }
-
-    // console.log('WORKER: getFileHandle filename:', filename);
-
-    const fileHandle = await currentDir.getFileHandle(filename, { create: true });
-
-    await writeFile(fileHandle, file);
-}
-
-async function moveFolder(payload: { sourcePath: string, destinationPath: string }) {
-    const { sourcePath, destinationPath } = payload;
-    const opfsRoot = await navigator.storage.getDirectory();
-
+// Core Operations
+async function saveTextFile(id: string, type: string, payload: { text: string, filepath: string }): Promise<WorkerResponse> {
     try {
-        // Get source directory
+        const { text, filepath } = payload;
+        const opfsRoot = await navigator.storage.getDirectory();
+
+        const parts = filepath.split('/').slice(1)
+        const filename = parts.pop()!;
+        let currentDir = opfsRoot;
+
+        // Create necessary subdirectories
+        for (const part of parts) {
+            currentDir = await currentDir.getDirectoryHandle(part, { create: true });
+        }
+
+        const fileHandle = await currentDir.getFileHandle(filename, { create: true });
+        await writeText(fileHandle, text);
+        return successResponse(id)
+    } catch (error) {
+        console.error("saveTextFile", error)
+        return errorResponse(id, type, error);
+    }
+}
+
+async function uploadFileOperation(id: string, type: string, payload: { file: File, filepath: string }): Promise<WorkerResponse> {
+    try {
+        await uploadFile(payload)
+        return successResponse(id);
+    } catch (error) {
+        console.error("uploadFileOperation", error)
+        return errorResponse(id, type, error)
+    }
+}
+
+async function moveFileOperation(id: string, type: string, payload: { sourcePath: string, destinationPath: string }): Promise<WorkerResponse> {
+    try {
+        const { sourcePath, destinationPath } = payload;
+
+        // Validate paths
+        if (sourcePath === destinationPath || !sourcePath.trim()) {
+            throw new Error(`Paths are the same: File not moved`);
+        }
+
+        // Find source file
+        const sourceFileHandle = await findFileHandle(sourcePath);
+        if (!sourceFileHandle) {
+            throw new Error(`Source file not found: ${sourcePath}`);
+        }
+
+        // Read file contents
+        const file = await sourceFileHandle.getFile();
+
+        // Upload to destination
+        await uploadFile({ file, filepath: destinationPath });
+
+        // Remove source file
+        const sourceParent = await findFileHandleParent(sourcePath);
+        if (sourceParent) {
+            const sourceParts = sourcePath.split('/')
+            const sourceFilename = sourceParts.pop();
+            if (sourceFilename) {
+                await sourceParent.removeEntry(sourceFilename);
+            }
+        }
+
+        return successResponse(id)
+    } catch (error) {
+        console.error("moveFileOperation", error)
+        return errorResponse(id, type, error)
+    }
+}
+
+async function moveFolderOperation(id: string, type: string, payload: { sourcePath: string, destinationPath: string }): Promise<WorkerResponse> {
+    try {
+        const { sourcePath, destinationPath } = payload;
+
+        if (sourcePath === destinationPath || !sourcePath.trim()) {
+            throw new Error(`Paths are the same: Folder not moved`);
+        }
+
+        const opfsRoot = await navigator.storage.getDirectory();
+
         const sourcePathParts = sourcePath.split('/').slice(1);
         let sourceDir = opfsRoot;
         let parentSourceDir = opfsRoot;
@@ -126,66 +171,52 @@ async function moveFolder(payload: { sourcePath: string, destinationPath: string
             destDir = await destDir.getDirectoryHandle(part, { create: true });
         }
 
-        // Copy all files from source to destination
+        // Copy all contents recursively
         await recursiveCopy(sourceDir, destDir);
-        // The method below would not copy all files properly
-        // // @ts-ignore: 'values' is a valid method on FileSystemDirectoryHandle
-        // for await (const entry of sourceDir.values()) {
-        //     if (entry.kind === 'file') {
-        //         const sourceFile = await sourceDir.getFileHandle(entry.name);
-        //         const file = await sourceFile.getFile();
-        //         const destFile = await destDir.getFileHandle(entry.name, { create: true });
-        //         await writeFile(destFile, file);
-        //     }
-        // }
 
-        // Delete original directory (and all its contents)
+        // Delete source directory
         await removeDirectoryFast(sourceDir);
 
-        // finally remove the parent folder if it is not the root
+        // Remove the folder itself
         await parentSourceDir.removeEntry(sourceDir.name);
+
+        // Finally send success response
+        return successResponse(id);
     } catch (error) {
-        console.error(`Error moving folder from ${sourcePath} to ${destinationPath}:`, error);
-        throw error;
+        console.error("moveFolderOperation", error)
+        return errorResponse(id, type, error);
     }
 }
 
-// unfortunately `remove` is not supported in all browsers yet, so we need to use `removeEntry` instead
-// async function remove(payload: { filepath: string}) {
-//     const { filepath } = payload;
-
-//     const opfsRoot = await navigator.storage.getDirectory();
-//     try {
-//         const fileHandle = await opfsRoot.getFileHandle(filepath, { create: false });
-//         await fileHandle.remove();
-//     } catch (error) {
-//         console.error(`Error removing file: ${path}`, error);
-//     }
-// }
-async function remove(payload: { path: string }) {
-    const { path } = payload;
-    const opfsRoot = await navigator.storage.getDirectory();
-
+async function deleteFileOperation(id: string, type: string, payload: { path: string }): Promise<WorkerResponse> {
     try {
-        // Split the filepath into directory and filename
-        const parts = path.split('/');
-        const filename = parts.pop()!;
-        let dirHandle = opfsRoot;
+        const { path } = payload;
 
-        // Traverse to the parent directory if needed
-        for (const part of parts) {
-            dirHandle = await dirHandle.getDirectoryHandle(part, { create: false });
+        const parentDir = await findFileHandleParent(path);
+        if (!parentDir) {
+            throw new Error(`Parent directory not found for: ${path}`);
         }
 
-        await dirHandle.removeEntry(filename);
+        const parts = path.split('/')
+        const filename = parts.pop();
+        if (!filename) {
+            throw new Error(`Invalid file path: ${path}`);
+        }
+
+        await parentDir.removeEntry(filename);
+        return successResponse(id);
     } catch (error) {
-        console.error(`Error removing file: ${path}`, error);
+        console.error("deleteFileOperation", error)
+        return errorResponse(id, type, error);
     }
 }
 
-export async function deleteFolder(path: string) {
+async function deleteFolderOperation(id: string, type: string, payload: { path: string }): Promise<WorkerResponse> {
     try {
+        const { path } = payload;
+
         const opfsRoot = await navigator.storage.getDirectory()
+
         // Get source directory
         const sourcePathParts = path.split('/').slice(1); // remove empty first part
         let dir = opfsRoot;
@@ -193,110 +224,14 @@ export async function deleteFolder(path: string) {
         for (const part of sourcePathParts) {
             parent = dir; // previous value of dir
             dir = await dir.getDirectoryHandle(part, { create: false });
+            console.log("deleteFolderOperation: dir", dir)
         }
 
         await removeDirectoryFast(dir);
-
         await parent.removeEntry(dir.name);
+        return successResponse(id);
     } catch (error) {
-        console.error(`Error clearing folder of ${path}:`, error);
-        throw error;
-    }
-    return true;
-}
-
-// UTILS
-async function recursiveCopy(sourceDir: FileSystemDirectoryHandle, destinationDir: FileSystemDirectoryHandle) {
-    // @ts-ignore: 'values' is a valid method on FileSystemDirectoryHandle
-    for await (const entry of sourceDir.values()) {
-        if (entry.kind === 'file') {
-            // Copy file
-            const sourceFile = await sourceDir.getFileHandle(entry.name);
-            const file = await sourceFile.getFile();
-            const destFile = await destinationDir.getFileHandle(entry.name, { create: true });
-            await writeFile(destFile, file);
-        } else if (entry.kind === 'directory') {
-            // Create and copy directory
-            const newDir = await destinationDir.getDirectoryHandle(entry.name, { create: true });
-            const sourceSubDir = await sourceDir.getDirectoryHandle(entry.name);
-            await recursiveCopy(sourceSubDir, newDir);
-        }
-    }
-}
-
-async function writeText(file: FileSystemFileHandle, contents: string) {
-    if ('createSyncAccessHandle' in file) {
-        const handle = (await (file as any).createSyncAccessHandle());
-        const encoder = new TextEncoder();
-        const encodedText = encoder.encode(contents); // Returns a Uint8Array
-        const arrayBuffer = encodedText.buffer; // The underlying ArrayBuffer
-        handle.truncate(0);
-        handle.write(arrayBuffer, {at: 0});
-        handle.flush();
-        handle.close();
-    } else if ('createWritable' in file) {
-        const writable = await file.createWritable();
-        writable.truncate(0);
-        await writable.write(contents);
-        await writable.close();
-    }
-}
-
-async function writeFile(file: FileSystemFileHandle, contents: File) {
-    if ('createSyncAccessHandle' in file) {
-        const handle = (await (file as any).createSyncAccessHandle());
-        handle.truncate(0);
-        if (contents.arrayBuffer) handle.write(await contents.arrayBuffer(), {at: 0});
-        handle.flush();
-        handle.close();
-    } else if ('createWritable' in file) {
-        const writable = await file.createWritable();
-        writable.truncate(0);
-        await writable.write(contents);
-        await writable.close();
-    }
-}
-
-async function removeDirectoryFast(dir: FileSystemDirectoryHandle) {
-    const toDelete: any[] = [];
-    let maxDepth = 0;
-    for await (const fileHandle
-        of getFilesNonRecursively(dir)) {
-        maxDepth = Math.max(maxDepth, fileHandle.depth);
-        toDelete.push(fileHandle);
-    }
-    async function deleteAtDepth(depth: number) {
-        for (const f of toDelete) {
-            if (f.depth === depth) {
-                await f.parentDir.removeEntry(f.name,
-                    { recursive: true });
-            }
-        }
-    }
-    const increment = 500; // Works empirically in Firefox.
-    for (let depth = maxDepth; depth > 1; depth -= increment) {
-        await deleteAtDepth(depth);
-    }
-    await deleteAtDepth(1);
-}
-
-// from https://aweirdimagination.net/2024/01/14/debugging-opfs/
-export async function* getFilesNonRecursively(dir: FileSystemDirectoryHandle): AsyncGenerator<(NonRecursiveEntry & FileSystemFileHandle) | (NonRecursiveEntry & FileSystemDirectoryHandle), void, unknown> {
-    const stack = [[dir, "", undefined, 0]];
-    while (stack.length) {
-        const [current, prefix, parentDir, depth] = stack.pop();
-        current.path = prefix + current.name;
-        current.parentDir = parentDir;
-        current.depth = depth;
-        yield current;
-
-        if (current.kind === "directory") {
-            for await (const handle of current.values()) {
-                stack.push([handle,
-                    prefix + current.name + "/",
-                    current,
-                    depth + 1]);
-            }
-        }
+        console.error("deleteFolderOperation", error)
+        return errorResponse(id, type, error);
     }
 }
