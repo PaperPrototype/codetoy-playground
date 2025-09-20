@@ -51,7 +51,6 @@
                 minimap: {
                     enabled: false,
                 },
-                // language: "typescript",
                 model: null,
                 autoIndent: "full",
                 formatOnPaste: true,
@@ -67,10 +66,6 @@
             editor.addCommand(KeyMod.CtrlCmd | KeyCode.KeyS, (e) => {
                 if (active) saveChanges(active);
             });
-
-            // if (value) {
-            //     editor.setValue(value);
-            // }
 
             // Two way binding svelte? https://github.com/ala-garbaa-pro/svelte-5-monaco-editor-two-way-binding
             editor.onDidChangeModelContent((e) => {
@@ -162,16 +157,6 @@
             return;
         }
 
-
-        /**
-            Cannot find module '/files/lib'. 
-            Did you mean to set the 'moduleResolution' option to 'nodenext', 
-            or to add aliases to the 'paths' option? (2792)
-        */
-    
-
-        // models are garbage collected once there is no longer a
-        // reference to them so no need to worry about disposing of a model
         const uri = new monaco.Uri().with({ path: "/files" + entry.relativePath });
         window.console.log("uri", uri)
         const file = await (entry.handle as FileSystemFileHandle).getFile();
@@ -182,13 +167,8 @@
             uri,
         );
 
+        // make it so that import syntax supports types correctly
         if (entry.name.includes(".ts")) {
-            // https://medium.com/@inquisitivebynature/web-based-ide-with-react-microsoft-monaco-editor-5ad5eaebaf92
-            // const fakePath = `file:///node_modules/@types/files${entry.relativePath}`;
-
-            // const typesPath = "/files" + entry.relativePath.slice(0, entry.relativePath.length - ".ts".length) + ".d.ts"
-            // console.log("CODE EDITOR: typesPath", typesPath)
-            // const uri = new monaco.Uri().with({ path: "files" + typesPath });
             monaco.languages.typescript.typescriptDefaults.addExtraLib(
                 content,
                 "/files" + entry.relativePath,
@@ -200,24 +180,6 @@
             entry: entry,
         };
     }
-
-    // $effect(() => {
-    //     if (value) {
-    //         if (editor) {
-    //             // check if the editor is focused
-    //             if (editor.hasWidgetFocus()) {
-    //                 // let the user edit with no interference
-    //             } else {
-    //                 if (editor?.getValue() ?? " " !== value) {
-    //                     editor?.setValue(value);
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     if (value === "") {
-    //         editor?.setValue(" ");
-    //     }
-    // });
 </script>
 
 <div class={className + " relative"} bind:this={editorContainer}>

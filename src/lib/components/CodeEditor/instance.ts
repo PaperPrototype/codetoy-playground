@@ -31,19 +31,19 @@ self.MonacoEnvironment = {
 	}
 };
 
-// monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
-// monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
+monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
+monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
 
 monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: false,
     noSyntaxValidation: false,
-    // noSuggestionDiagnostics: false
+    noSuggestionDiagnostics: false
 });
 
 monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: false,
     noSyntaxValidation: false,
-    // noSuggestionDiagnostics: false
+    noSuggestionDiagnostics: false
 });
 
 monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
@@ -53,24 +53,6 @@ monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
     module: monaco.languages.typescript.ModuleKind.CommonJS,
     noEmit: true,
 });
-
-// monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-//     // ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
-//     allowNonTsExtensions: true,
-//     module: monaco.languages.typescript.ModuleKind.ESNext,
-//     target: monaco.languages.typescript.ScriptTarget.ES2020,
-//     // moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-//     // target: monaco.languages.typescript.ScriptTarget.Latest,
-// });
-
-// monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
-//     // ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
-//     allowNonTsExtensions: true,
-//     module: monaco.languages.typescript.ModuleKind.ESNext,
-//     target: monaco.languages.typescript.ScriptTarget.ES2020,
-//     // moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-//     // target: monaco.languages.typescript.ScriptTarget.Latest,
-// });
 
 // monaco.languages.registerDefinitionProvider("typescript", {
 //     provideDefinition(model, position) {

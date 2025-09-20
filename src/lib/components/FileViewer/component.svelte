@@ -257,34 +257,10 @@
                     bind:value={entry.name}
                     onblur={() => {
                         entry.isEditing = false; 
-                        // entry.name = entry.handle.name;
                     }}
                 />
-
-                <!-- 
-                <button class="bg-red-500 rounded-sm p-1" onclick={() => fetchFileAttempt(entry.relativePath)}>
-                    fetch request
-                </button> 
-                {#if entry.kind === "file"}
-                    <div
-                        class="group-hover:block hidden pointer-events-none w-80 bg-white rounded px-2 p-1 top-full left-full absolute z-10 shadow-md"
-                    >
-                        <span>Size: {entry.size} bytes</span>
-                        <span>Type: {entry.type}</span>
-                        {#if entry.lastModified}
-                            <span
-                                >Last Modified: {new Date(
-                                    entry.lastModified,
-                                ).toLocaleString()}</span
-                            >
-                        {/if}
-                        <span>Path: {entry.relativePath}</span>
-                    </div>
-                {/if}
-                -->
             </div>
             <button onclick={() => {
-                // console.log('toggling open for', entry.name);
                 entry.isDirectoryOpen = !entry.isDirectoryOpen;
             }} class="inline-block absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-base-300 {entry.entries && Object.keys(entry.entries).length > 0 ? '' : 'invisible'}">
                 {#if entry.isDirectoryOpen}
