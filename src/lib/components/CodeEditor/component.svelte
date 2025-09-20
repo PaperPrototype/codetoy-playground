@@ -144,11 +144,18 @@
     }
 
     async function saveChanges(codetoyModel: CodetoyModel) {
-        saved(codetoyModel.model, codetoyModel.entry);
         const { saveTextFile: save } = await import(
             "$lib/components/FileViewer/files.js"
         );
-        save(codetoyModel.model.getValue(), codetoyModel.entry.relativePath);
+        const value = codetoyModel.model.getValue()
+        await save(value, codetoyModel.entry.relativePath);
+        saved(codetoyModel.model, codetoyModel.entry);
+
+        // update types
+        monaco!.languages.typescript.typescriptDefaults.addExtraLib(
+            value,
+            "/files" + codetoyModel.entry.relativePath,
+        );
     }
 
     async function loadModel(entry: Entry) {

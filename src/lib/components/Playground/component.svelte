@@ -26,6 +26,7 @@
 // }
 
 // `
+
     let activeEntry: Entry | undefined;
 
     onMount(() => {
@@ -47,6 +48,8 @@
         canvas.height = 400; // pixels
 
         const url = "/files" + activeEntry.relativePath;
+
+        // use this to debug responses from dev server
         // const resp = await fetch(url);
         // window.console.log("PLAYGROUND: fetch code response", resp)
         // const srcCode = await resp.text();
